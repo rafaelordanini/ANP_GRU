@@ -1,0 +1,14 @@
+{
+  "functions": {
+    "api/fuel-prices.js": {
+      "memory": 1024,
+      "maxDuration": 30
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/fuel-prices",
+      "destination": "/api/fuel-prices"
+    }
+  ]
+}

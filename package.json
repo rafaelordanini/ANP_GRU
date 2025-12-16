@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Preços de combustíveis em Guarulhos - ANP",
   "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
     "xlsx": "^0.18.5"
   }
