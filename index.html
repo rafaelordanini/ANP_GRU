@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preços de Combustíveis - Guarulhos</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-card: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --accent: #0ea5e9;
+            --accent-dark: #0284c7;
+            --accent-light: #e0f2fe;
+            --border: #e2e8f0;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --gasolina: #ef4444;
+            --etanol: #22c55e;
+            --diesel: #3b82f6;
+            --gnv: #a855f7;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+        }
+
+        .dark {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-card: #1e293b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent: #38bdf8;
+            --accent-dark: #0ea5e9;
+            --accent-light: #0c4a6e;
+            --border: #334155;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .background-pattern {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background:
+                radial-gradient(circle at 20% 80%, var(--accent-light) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(168, 85, 247, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(34, 197, 94, 0.05) 0%, transparent 40%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            animation: fadeInDown 0.6s ease-out;
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .logo i {
+            font-size: 2.5rem;
+            color: var(--accent);
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), #a855f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .location {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            margin-top: 8px;
+        }
+
+        .location i {
+            color: var(--danger);
+        }
+
+        .status-bar {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 30px;
+            animation: fadeInUp 0.6s ease-out 0.1s both;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background: var(--bg-card);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            font-size: 0.9rem;
+        }
+
+        .status-item i {
+            color: var(--accent);
+        }
+
+        .status-item.live {
+            border: 1px solid var(--success);
+        }
+
+        .status-item.live i {
+            color: var(--success);
+            animation: pulse 2s infinite;
+        }
+
+        .fuel-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .fuel-card {
+            background: var(--bg-card);
+            border-radius: 20px;
+            padding: 24px;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--border);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            animation: fadeInUp 0.6s ease-out both;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .fuel-card:nth-child(1) { animation-delay: 0.2s; }
+        .fuel-card:nth-child(2) { animation-delay: 0.3s; }
+        .fuel-card:nth-child(3) { animation-delay: 0.4s; }
+        .fuel-card:nth-child(4) { animation-delay: 0.5s; }
+
+        .fuel-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .fuel-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+        }
+
+        .fuel-card.gasolina::before { background: var(--gasolina); }
+        .fuel-card.etanol::before { background: var(--etanol); }
+        .fuel-card.diesel::before { background: var(--diesel); }
+        .fuel-card.gnv::before { background: var(--gnv); }
+
+        .fuel-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 16px;
+        }
+
+        .gasolina .fuel-icon {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--gasolina);
+        }
+
+        .etanol .fuel-icon {
+            background: rgba(34, 197, 94, 0.15);
+            color: var(--etanol);
+        }
+
+        .diesel .fuel-icon {
+            background: rgba(59, 130, 246, 0.15);
+            color: var(--diesel);
+        }
+
+        .gnv .fuel-icon {
+            background: rgba(168, 85, 247, 0.15);
+            color: var(--gnv);
+        }
+
+        .fuel-name {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .fuel-price {
+            font-family: 'Space Mono', monospace;
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .fuel-price .currency {
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+        }
+
+        .fuel-unit {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .fuel-card.loading .fuel-price,
+        .fuel-card.loading .fuel-unit {
+            background: linear-gradient(90deg, var(--border) 25%, var(--bg-secondary) 50%, var(--border) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 4px;
+            color: transparent;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .update-section {
+            text-align: center;
+            margin-bottom: 30px;
+            animation: fadeInUp 0.6s ease-out 0.6s both;
+        }
+
+        .update-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 28px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+            color: white;
+            border: none;
+            border-radius: 14px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 14px rgba(14, 165, 233, 0.4);
+        }
+
+        .update-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(14, 165, 233, 0.5);
+        }
+
+        .update-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        .update-btn.loading i {
+            animation: spin 1s linear infinite;
+        }
+
+        .info-section {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            animation: fadeInUp 0.6s ease-out 0.7s both;
+        }
+
+        .info-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+        }
+
+        .info-title i {
+            color: var(--accent);
+        }
+
+        .info-text {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.8;
+        }
+
+        .info-text a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .info-text a:hover {
+            text-decoration: underline;
+        }
+
+        .data-period {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--accent-light);
+            color: var(--accent-dark);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-top: 8px;
+        }
+
+        .dark .data-period {
+            background: rgba(56, 189, 248, 0.2);
+            color: var(--accent);
+        }
+
+        .error-message {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--danger);
+            color: var(--danger);
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            display: none;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .error-message.show {
+            display: flex;
+        }
+
+        .next-update {
+            font-family: 'Space Mono', monospace;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .modal-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal {
+            background: var(--bg-card);
+            border-radius: 20px;
+            padding: 28px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--border);
+            transform: scale(0.9) translateY(20px);
+            transition: all 0.3s ease;
+        }
+
+        .modal-overlay.show .modal {
+            transform: scale(1) translateY(0);
+        }
+
+        .modal-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            font-size: 1.5rem;
+        }
+
+        .modal-icon.password {
+            background: var(--accent-light);
+            color: var(--accent);
+        }
+
+        .modal-icon.error {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--danger);
+        }
+
+        .modal-icon.success {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--success);
+        }
+
+        .modal-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        .modal-text {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .modal-input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 1rem;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            transition: all 0.2s ease;
+            margin-bottom: 16px;
+        }
+
+        .modal-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-light);
+        }
+
+        .modal-input.error {
+            border-color: var(--danger);
+            animation: shake 0.5s ease;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+        }
+
+        .modal-btn {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 12px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .modal-btn.cancel {
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+
+        .modal-btn.cancel:hover {
+            background: var(--border);
+        }
+
+        .modal-btn.confirm {
+            background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+            color: white;
+            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+        }
+
+        .modal-btn.confirm:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(14, 165, 233, 0.4);
+        }
+
+        .modal-btn.single {
+            flex: none;
+            width: 100%;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            padding: 20px;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            animation: fadeInUp 0.6s ease-out 0.8s both;
+        }
+
+        footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 16px;
+            }
+
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            .fuel-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 12px;
+            }
+
+            .fuel-card {
+                padding: 16px;
+            }
+
+            .fuel-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 1.2rem;
+            }
+
+            .fuel-price {
+                font-size: 1.5rem;
+            }
+
+            .status-bar {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="background-pattern"></div>
+
+    <div class="container">
+        <header>
+            <div class="logo">
+                <i class="fas fa-gas-pump"></i>
+                <h1>Preços de Combustíveis</h1>
+            </div>
+            <div class="location">
+                <i class="fas fa-map-marker-alt"></i>
+                <span>Guarulhos, SP</span>
+            </div>
+        </header>
+
+        <div class="status-bar">
+            <div class="status-item" id="lastUpdate">
+                <i class="far fa-clock"></i>
+                <span>Última consulta: <strong id="lastUpdateTime">--</strong></span>
+            </div>
+            <div class="status-item" id="nextUpdateItem">
+                <i class="fas fa-sync-alt"></i>
+                <span>Próxima: <strong class="next-update" id="nextUpdateTime">07:00</strong></span>
+            </div>
+            <div class="status-item live" id="liveStatus" style="display: none;">
+                <i class="fas fa-circle"></i>
+                <span>Dados atualizados</span>
+            </div>
+        </div>
+
+        <div class="error-message" id="errorMessage">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span id="errorText"></span>
+        </div>
+
+        <div class="fuel-grid" id="fuelGrid">
+            <div class="fuel-card gasolina loading">
+                <div class="fuel-icon"><i class="fas fa-fire"></i></div>
+                <div class="fuel-name">Gasolina Comum</div>
+                <div class="fuel-price" id="priceGasolina">R$ --</div>
+                <div class="fuel-unit">por litro</div>
+            </div>
+
+            <div class="fuel-card etanol loading">
+                <div class="fuel-icon"><i class="fas fa-leaf"></i></div>
+                <div class="fuel-name">Etanol</div>
+                <div class="fuel-price" id="priceEtanol">R$ --</div>
+                <div class="fuel-unit">por litro</div>
+            </div>
+
+            <div class="fuel-card diesel loading">
+                <div class="fuel-icon"><i class="fas fa-truck"></i></div>
+                <div class="fuel-name">Diesel</div>
+                <div class="fuel-price" id="priceDiesel">R$ --</div>
+                <div class="fuel-unit">por litro</div>
+            </div>
+
+            <div class="fuel-card gnv loading">
+                <div class="fuel-icon"><i class="fas fa-wind"></i></div>
+                <div class="fuel-name">GNV</div>
+                <div class="fuel-price" id="priceGNV">R$ --</div>
+                <div class="fuel-unit">por m³</div>
+            </div>
+        </div>
+
+        <div class="update-section">
+            <button class="update-btn" id="updateBtn" onclick="showPasswordModal()">
+                <i class="fas fa-sync-alt"></i>
+                Atualizar Preços
+            </button>
+        </div>
+
+        <div class="info-section">
+            <div class="info-title">
+                <i class="fas fa-info-circle"></i>
+                Sobre os Dados
+            </div>
+            <div class="info-text">
+                Os preços exibidos são os <strong>preços médios de revenda</strong> praticados em Guarulhos,
+                obtidos da <a href="https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-revenda-e-de-distribuicao-combustiveis/serie-historica-do-levantamento-de-precos" target="_blank">
+                Série Histórica de Preços da ANP</a> (Agência Nacional do Petróleo, Gás Natural e Biocombustíveis).
+                <br><br>
+                <i class="far fa-calendar-alt"></i> Período dos dados: <span class="data-period" id="dataPeriod">Carregando...</span>
+            </div>
+        </div>
+
+        <footer>
+            Dados fornecidos pela <a href="https://www.gov.br/anp" target="_blank">ANP</a> •
+            Atualização automática diária às 07:00
+        </footer>
+    </div>
+
+    <!-- Password Modal -->
+    <div class="modal-overlay" id="passwordModal">
+        <div class="modal">
+            <div class="modal-icon password">
+                <i class="fas fa-lock"></i>
+            </div>
+            <h3 class="modal-title">Autenticação Necessária</h3>
+            <p class="modal-text">Digite a senha para atualizar os dados manualmente.</p>
+            <input type="password" class="modal-input" id="passwordInput" placeholder="Digite a senha..." autocomplete="off">
+            <div class="modal-buttons">
+                <button class="modal-btn cancel" onclick="closePasswordModal()">Cancelar</button>
+                <button class="modal-btn confirm" onclick="validatePassword()">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Modal -->
+    <div class="modal-overlay" id="errorModal">
+        <div class="modal">
+            <div class="modal-icon error">
+                <i class="fas fa-times"></i>
+            </div>
+            <h3 class="modal-title">Senha Incorreta</h3>
+            <p class="modal-text">A senha digitada está incorreta.<br><br>Os dados são atualizados automaticamente todos os dias às <strong>07:00 da manhã</strong>.</p>
+            <button class="modal-btn confirm single" onclick="closeErrorModal()">Entendi</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        // Dark mode detection
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        }
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (event.matches) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        });
+
+        const EXCEL_URL = 'https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-revenda-e-de-distribuicao-combustiveis/shlp/semanal/semanal-municipio-2024-2025.xlsx';
+        const HEADER_ROW = 11; // Row index where headers are located (0-based)
+        const UPDATE_PASSWORD = 'transportescmg';
+
+        let isLoading = false;
+        let lastCheckHour = -1;
+
+        // Modal Functions
+        function showPasswordModal() {
+            if (isLoading) return;
+            const modal = document.getElementById('passwordModal');
+            const input = document.getElementById('passwordInput');
+            input.value = '';
+            input.classList.remove('error');
+            modal.classList.add('show');
+            setTimeout(() => input.focus(), 100);
+        }
+
+        function closePasswordModal() {
+            document.getElementById('passwordModal').classList.remove('show');
+        }
+
+        function showErrorModal() {
+            document.getElementById('errorModal').classList.add('show');
+        }
+
+        function closeErrorModal() {
+            document.getElementById('errorModal').classList.remove('show');
+        }
+
+        function validatePassword() {
+            const input = document.getElementById('passwordInput');
+            const password = input.value;
+
+            if (password === UPDATE_PASSWORD) {
+                closePasswordModal();
+                fetchFuelPrices();
+            } else {
+                input.classList.add('error');
+                input.value = '';
+                setTimeout(() => {
+                    closePasswordModal();
+                    showErrorModal();
+                }, 500);
+            }
+        }
+
+        // Handle Enter key in password input
+        document.addEventListener('DOMContentLoaded', function() {
+            const passwordInput = document.getElementById('passwordInput');
+            passwordInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    validatePassword();
+                }
+            });
+
+            // Close modals on overlay click
+            document.getElementById('passwordModal').addEventListener('click', function(e) {
+                if (e.target === this) closePasswordModal();
+            });
+            document.getElementById('errorModal').addEventListener('click', function(e) {
+                if (e.target === this) closeErrorModal();
+            });
+        });
+
+        function formatPrice(value) {
+            if (value === null || value === undefined || isNaN(value)) return '--';
+            return value.toFixed(2).replace('.', ',');
+        }
+
+        function formatDateTime(date) {
+            const options = {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            };
+            return date.toLocaleDateString('pt-BR', options);
+        }
+
+        function formatDate(date) {
+            const options = { day: '2-digit', month: '2-digit', year: 'numeric' };
+            return date.toLocaleDateString('pt-BR', options);
+        }
+
+        function excelDateToJS(serial) {
+            if (serial instanceof Date) return serial;
+            if (typeof serial === 'string') return new Date(serial);
+            const utcDays = Math.floor(serial - 25569);
+            return new Date(utcDays * 86400 * 1000);
+        }
+
+        function setLoading(loading) {
+            isLoading = loading;
+            const btn = document.getElementById('updateBtn');
+            const cards = document.querySelectorAll('.fuel-card');
+
+            if (loading) {
+                btn.disabled = true;
+                btn.classList.add('loading');
+                btn.innerHTML = '<i class="fas fa-spinner"></i> Baixando dados da ANP...';
+                cards.forEach(card => card.classList.add('loading'));
+            } else {
+                btn.disabled = false;
+                btn.classList.remove('loading');
+                btn.innerHTML = '<i class="fas fa-sync-alt"></i> Atualizar Preços';
+                cards.forEach(card => card.classList.remove('loading'));
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            const errorText = document.getElementById('errorText');
+            errorText.textContent = message;
+            errorDiv.classList.add('show');
+        }
+
+        function hideError() {
+            document.getElementById('errorMessage').classList.remove('show');
+        }
+
+        function updateUI(prices, periodStart, periodEnd) {
+            document.getElementById('priceGasolina').innerHTML =
+                `<span class="currency">R$</span> ${formatPrice(prices.gasolinaComum)}`;
+            document.getElementById('priceEtanol').innerHTML =
+                `<span class="currency">R$</span> ${formatPrice(prices.etanol)}`;
+            document.getElementById('priceDiesel').innerHTML =
+                `<span class="currency">R$</span> ${formatPrice(prices.diesel)}`;
+            document.getElementById('priceGNV').innerHTML =
+                `<span class="currency">R$</span> ${formatPrice(prices.gnv)}`;
+
+            document.getElementById('lastUpdateTime').textContent = formatDateTime(new Date());
+            document.getElementById('dataPeriod').textContent =
+                `${formatDate(periodStart)} a ${formatDate(periodEnd)}`;
+
+            document.getElementById('liveStatus').style.display = 'flex';
+            hideError();
+        }
+
+        function processExcelData(data) {
+            const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+
+            // Convert to JSON, starting from header row
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, {
+                range: HEADER_ROW,
+                defval: null
+            });
+
+            // Filter for GUARULHOS
+            const guarulhosData = jsonData.filter(row => {
+                const municipio = row['MUNICÍPIO'] || row['MUNICIPIO'];
+                return municipio && municipio.toString().toUpperCase() === 'GUARULHOS';
+            });
+
+            if (guarulhosData.length === 0) {
+                throw new Error('Nenhum dado encontrado para Guarulhos');
+            }
+
+            // Find the most recent DATA FINAL
+            let maxDate = null;
+            guarulhosData.forEach(row => {
+                const dataFinal = excelDateToJS(row['DATA FINAL']);
+                if (!maxDate || dataFinal > maxDate) {
+                    maxDate = dataFinal;
+                }
+            });
+
+            // Filter for the most recent date
+            const latestData = guarulhosData.filter(row => {
+                const dataFinal = excelDateToJS(row['DATA FINAL']);
+                return dataFinal.getTime() === maxDate.getTime();
+            });
+
+            // Get DATA INICIAL
+            let minDate = null;
+            latestData.forEach(row => {
+                const dataInicial = excelDateToJS(row['DATA INICIAL']);
+                if (!minDate || dataInicial < minDate) {
+                    minDate = dataInicial;
+                }
+            });
+
+            // Extract prices for each fuel type
+            const prices = {
+                gasolinaComum: null,
+                etanol: null,
+                diesel: null,
+                gnv: null
+            };
+
+            latestData.forEach(row => {
+                const produto = (row['PRODUTO'] || '').toString().toUpperCase();
+                const preco = row['PREÇO MÉDIO REVENDA'];
+
+                if (produto.includes('GASOLINA COMUM')) {
+                    prices.gasolinaComum = preco !== null && !isNaN(preco) ? parseFloat(preco) : null;
+                } else if (produto.includes('ETANOL')) {
+                    prices.etanol = preco !== null && !isNaN(preco) ? parseFloat(preco) : null;
+                } else if (produto.includes('DIESEL') && !produto.includes('S10')) {
+                    prices.diesel = preco !== null && !isNaN(preco) ? parseFloat(preco) : null;
+                } else if (produto.includes('GNV')) {
+                    prices.gnv = preco !== null && !isNaN(preco) ? parseFloat(preco) : null;
+                }
+            });
+
+            return {
+                prices,
+                periodStart: minDate,
+                periodEnd: maxDate
+            };
+        }
+
+        async function fetchFuelPrices() {
+            if (isLoading) return;
+
+            setLoading(true);
+            hideError();
+
+            try {
+                const response = await fetch(EXCEL_URL);
+                if (!response.ok) {
+                    throw new Error(`Erro ao baixar arquivo: ${response.status}`);
+                }
+
+                const arrayBuffer = await response.arrayBuffer();
+                const data = new Uint8Array(arrayBuffer);
+
+                const result = processExcelData(data);
+                updateUI(result.prices, result.periodStart, result.periodEnd);
+
+            } catch (error) {
+                console.error('Error fetching fuel prices:', error);
+                showError('Erro ao buscar dados: ' + error.message);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        // Check every minute if it's 7:00 AM for auto-update
+        function checkAutoUpdate() {
+            const now = new Date();
+            const currentHour = now.getHours();
+            const currentMinute = now.getMinutes();
+
+            // Trigger at 7:00 AM if we haven't already triggered this hour
+            if (currentHour === 7 && currentMinute === 0 && lastCheckHour !== 7) {
+                lastCheckHour = 7;
+                fetchFuelPrices();
+            } else if (currentHour !== 7) {
+                lastCheckHour = -1;
+            }
+
+            // Update next update time display
+            const nextUpdate = new Date();
+            if (currentHour >= 7) {
+                nextUpdate.setDate(nextUpdate.getDate() + 1);
+            }
+            nextUpdate.setHours(7, 0, 0, 0);
+
+            const hoursUntil = Math.floor((nextUpdate - now) / (1000 * 60 * 60));
+            const minutesUntil = Math.floor(((nextUpdate - now) % (1000 * 60 * 60)) / (1000 * 60));
+
+            if (hoursUntil > 0) {
+                document.getElementById('nextUpdateTime').textContent = `${hoursUntil}h ${minutesUntil}min`;
+            } else {
+                document.getElementById('nextUpdateTime').textContent = `${minutesUntil}min`;
+            }
+        }
+
+        // Check every minute
+        setInterval(checkAutoUpdate, 60000);
+        checkAutoUpdate();
+
+        // Initial fetch on page load
+        fetchFuelPrices();
+    </script>
+</body>
+</html>
