@@ -711,6 +711,8 @@
         </footer>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
     <!-- Password Modal -->
     <div class="modal-overlay" id="passwordModal">
         <div class="modal">
@@ -752,7 +754,9 @@
             }
         });
 
-        const API_URL = '/api/fuel-prices';
+        const EXCEL_URL = 'https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-revenda-e-de-distribuicao-combustiveis/shlp/semanal/semanal-municipio-2024-2025.xlsx';
+        const CORS_PROXY = 'https://corsproxy.io/?';
+        const HEADER_ROW = 11;
         const UPDATE_PASSWORD = 'transportescmg';
 
         let isLoading = false;
@@ -884,6 +888,78 @@
             hideError();
         }
 
+        function excelDateToJS(serial) {
+            if (serial instanceof Date) return serial;
+            if (typeof serial === 'string') return new Date(serial);
+            const utcDays = Math.floor(serial - 25569);
+            return new Date(utcDays * 86400 * 1000);
+        }
+
+        function processExcelData(data) {
+            const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, {
+                range: HEADER_ROW,
+                defval: null
+            });
+
+            const guarulhosData = jsonData.filter(row => {
+                const municipio = row['MUNICÍPIO'] || row['MUNICIPIO'];
+                return municipio && municipio.toString().toUpperCase() === 'GUARULHOS';
+            });
+
+            if (guarulhosData.length === 0) {
+                throw new Error('Nenhum dado encontrado para Guarulhos');
+            }
+
+            let maxDate = null;
+            guarulhosData.forEach(row => {
+                const dataFinal = excelDateToJS(row['DATA FINAL']);
+                if (!maxDate || dataFinal > maxDate) {
+                    maxDate = dataFinal;
+                }
+            });
+
+            const latestData = guarulhosData.filter(row => {
+                const dataFinal = excelDateToJS(row['DATA FINAL']);
+                return dataFinal.getTime() === maxDate.getTime();
+            });
+
+            let minDate = null;
+            latestData.forEach(row => {
+                const dataInicial = excelDateToJS(row['DATA INICIAL']);
+                if (!minDate || dataInicial < minDate) {
+                    minDate = dataInicial;
+                }
+            });
+
+            const prices = {
+                gasolinaComum: null,
+                etanol: null,
+                diesel: null,
+                gnv: null
+            };
+
+            latestData.forEach(row => {
+                const produto = (row['PRODUTO'] || '').toString().toUpperCase();
+                const preco = row['PREÇO MÉDIO REVENDA'];
+
+                if (produto.includes('GASOLINA COMUM')) {
+                    prices.gasolinaComum = preco !== null && !isNaN(preco) ? parseFloat(preco) : null;
+                } else if (produto.includes('ETANOL')) {
+                    prices.etanol = preco !== null && !isNaN(preco) ? parseFloat(preco) : null;
+                } else if (produto.includes('DIESEL') && !produto.includes('S10')) {
+                    prices.diesel = preco !== null && !isNaN(preco) ? parseFloat(preco) : null;
+                } else if (produto.includes('GNV')) {
+                    prices.gnv = preco !== null && !isNaN(preco) ? parseFloat(preco) : null;
+                }
+            });
+
+            return { prices, periodStart: minDate, periodEnd: maxDate };
+        }
+
         async function fetchFuelPrices() {
             if (isLoading) return;
 
@@ -891,16 +967,17 @@
             hideError();
 
             try {
-                const response = await fetch(API_URL);
-                const result = await response.json();
+                const response = await fetch(CORS_PROXY + encodeURIComponent(EXCEL_URL));
 
-                if (!response.ok || !result.success) {
-                    throw new Error(result.error || `Erro na API: ${response.status}`);
+                if (!response.ok) {
+                    throw new Error('Erro ao baixar arquivo: ' + response.status);
                 }
 
-                const periodStart = new Date(result.periodStart);
-                const periodEnd = new Date(result.periodEnd);
-                updateUI(result.data, periodStart, periodEnd);
+                const arrayBuffer = await response.arrayBuffer();
+                const data = new Uint8Array(arrayBuffer);
+
+                const result = processExcelData(data);
+                updateUI(result.prices, result.periodStart, result.periodEnd);
 
             } catch (error) {
                 console.error('Error fetching fuel prices:', error);
