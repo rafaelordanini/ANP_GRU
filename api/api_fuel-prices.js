@@ -1,4 +1,4 @@
-const XLSX = require('xlsx');
+import * as XLSX from 'xlsx';
 
 const EXCEL_URL = 'https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-revenda-e-de-distribuicao-combustiveis/shlp/semanal/semanal-municipio-2024-2025.xlsx';
 const HEADER_ROW = 11;
@@ -15,7 +15,6 @@ function formatDate(date) {
 }
 
 async function fetchAndProcessExcel() {
-    // Fetch the Excel file
     const response = await fetch(EXCEL_URL, {
         headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -29,18 +28,15 @@ async function fetchAndProcessExcel() {
     const arrayBuffer = await response.arrayBuffer();
     const data = new Uint8Array(arrayBuffer);
 
-    // Parse Excel
     const workbook = XLSX.read(data, { type: 'array', cellDates: true });
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
 
-    // Convert to JSON starting from header row
     const jsonData = XLSX.utils.sheet_to_json(worksheet, {
         range: HEADER_ROW,
         defval: null
     });
 
-    // Filter for GUARULHOS
     const guarulhosData = jsonData.filter(row => {
         const municipio = row['MUNICÍPIO'] || row['MUNICIPIO'];
         return municipio && municipio.toString().toUpperCase() === 'GUARULHOS';
@@ -50,7 +46,6 @@ async function fetchAndProcessExcel() {
         throw new Error('Nenhum dado encontrado para Guarulhos');
     }
 
-    // Find the most recent DATA FINAL
     let maxDate = null;
     guarulhosData.forEach(row => {
         const dataFinal = excelDateToJS(row['DATA FINAL']);
@@ -59,13 +54,11 @@ async function fetchAndProcessExcel() {
         }
     });
 
-    // Filter for the most recent date
     const latestData = guarulhosData.filter(row => {
         const dataFinal = excelDateToJS(row['DATA FINAL']);
         return dataFinal.getTime() === maxDate.getTime();
     });
 
-    // Get DATA INICIAL
     let minDate = null;
     latestData.forEach(row => {
         const dataInicial = excelDateToJS(row['DATA INICIAL']);
@@ -74,7 +67,6 @@ async function fetchAndProcessExcel() {
         }
     });
 
-    // Extract prices for each fuel type
     const prices = {
         gasolinaComum: null,
         etanol: null,
@@ -107,10 +99,10 @@ async function fetchAndProcessExcel() {
 }
 
 export default async function handler(req, res) {
-    // Set CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate');
 
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
@@ -118,10 +110,10 @@ export default async function handler(req, res) {
 
     try {
         const result = await fetchAndProcessExcel();
-        res.status(200).json(result);
+        return res.status(200).json(result);
     } catch (error) {
         console.error('Error:', error);
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             error: error.message
         });
