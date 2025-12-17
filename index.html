@@ -812,8 +812,6 @@
         </footer>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
     <!-- Password Modal -->
     <div class="modal-overlay" id="passwordModal">
         <div class="modal">
@@ -855,101 +853,12 @@
             }
         });
 
-        const EXCEL_URL = 'https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-revenda-e-de-distribuicao-combustiveis/shlp/semanal/semanal-municipio-2024-2025.xlsx';
-        const CORS_PROXY = 'https://corsproxy.io/?';
-        const HEADER_ROW = 11;
+        const API_URL = '/api/fuel-prices';
         const UPDATE_PASSWORD = 'transportescmg';
 
         let isLoading = false;
         let lastCheckHour = -1;
         let currentPrices = { gasolinaComum: null, etanol: null };
-
-        // Cache Functions
-        const CACHE_KEY = 'anp_fuel_prices_cache';
-        const storage = window['local' + 'Storage']; // Indirect reference for Vercel hosting
-
-        function saveToCache(prices, periodStart, periodEnd) {
-            const cacheData = {
-                prices: prices,
-                periodStart: periodStart.toISOString(),
-                periodEnd: periodEnd.toISOString(),
-                updatedAt: new Date().toISOString()
-            };
-            try {
-                if (storage) storage.setItem(CACHE_KEY, JSON.stringify(cacheData));
-            } catch (e) {
-                console.log('Cache save failed:', e);
-            }
-        }
-
-        function loadFromCache() {
-            try {
-                if (!storage) return null;
-                const cached = storage.getItem(CACHE_KEY);
-                if (!cached) return null;
-
-                const data = JSON.parse(cached);
-                data.periodStart = new Date(data.periodStart);
-                data.periodEnd = new Date(data.periodEnd);
-                data.updatedAt = new Date(data.updatedAt);
-                return data;
-            } catch (e) {
-                console.log('Cache load failed:', e);
-                return null;
-            }
-        }
-
-        function isCacheValid() {
-            const cached = loadFromCache();
-            if (!cached) return false;
-
-            const now = new Date();
-            const updatedAt = cached.updatedAt;
-
-            // Get today's 7:00 AM
-            const today7AM = new Date(now);
-            today7AM.setHours(7, 0, 0, 0);
-
-            // If it's before 7:00 AM today, check if cache was updated after yesterday's 7:00 AM
-            if (now < today7AM) {
-                const yesterday7AM = new Date(today7AM);
-                yesterday7AM.setDate(yesterday7AM.getDate() - 1);
-                return updatedAt >= yesterday7AM;
-            }
-
-            // If it's after 7:00 AM today, cache is valid only if updated after today's 7:00 AM
-            return updatedAt >= today7AM;
-        }
-
-        function loadCachedData() {
-            const cached = loadFromCache();
-            if (cached && cached.prices) {
-                currentPrices.gasolinaComum = cached.prices.gasolinaComum;
-                currentPrices.etanol = cached.prices.etanol;
-
-                document.getElementById('priceGasolina').innerHTML =
-                    `<span class="currency">R$</span> ${formatPrice(cached.prices.gasolinaComum)}`;
-                document.getElementById('priceEtanol').innerHTML =
-                    `<span class="currency">R$</span> ${formatPrice(cached.prices.etanol)}`;
-                document.getElementById('priceDiesel').innerHTML =
-                    `<span class="currency">R$</span> ${formatPrice(cached.prices.diesel)}`;
-                document.getElementById('priceGNV').innerHTML =
-                    `<span class="currency">R$</span> ${formatPrice(cached.prices.gnv)}`;
-
-                document.getElementById('lastUpdateTime').textContent = formatDateTime(cached.updatedAt);
-                document.getElementById('dataPeriod').textContent =
-                    `${formatDate(cached.periodStart)} a ${formatDate(cached.periodEnd)}`;
-
-                document.getElementById('liveStatus').style.display = 'flex';
-                document.getElementById('whatsappBtn').disabled = false;
-
-                // Remove loading state from cards
-                document.querySelectorAll('.fuel-card').forEach(card => card.classList.remove('loading'));
-
-                return true;
-            }
-            return false;
-        }
 
         // WhatsApp Functions
         function getWeekDates() {
@@ -1047,7 +956,7 @@ GASOLINA R$ ${gasolinaFormatted}
 
             if (password === UPDATE_PASSWORD) {
                 closePasswordModal();
-                fetchFuelPrices();
+                fetchFuelPrices(true); // Force refresh bypasses server cache
             } else {
                 input.classList.add('error');
                 input.value = '';
@@ -1142,108 +1051,36 @@ GASOLINA R$ ${gasolinaFormatted}
 
             document.getElementById('lastUpdateTime').textContent = formatDateTime(new Date());
             document.getElementById('dataPeriod').textContent =
-                `${formatDate(periodStart)} a ${formatDate(periodEnd)}`;
+                `${formatDate(new Date(periodStart))} a ${formatDate(new Date(periodEnd))}`;
 
             document.getElementById('liveStatus').style.display = 'flex';
             hideError();
 
             // Enable WhatsApp button
             document.getElementById('whatsappBtn').disabled = false;
-
-            // Save to cache
-            saveToCache(prices, periodStart, periodEnd);
         }
 
-        function excelDateToJS(serial) {
-            if (serial instanceof Date) return serial;
-            if (typeof serial === 'string') return new Date(serial);
-            const utcDays = Math.floor(serial - 25569);
-            return new Date(utcDays * 86400 * 1000);
-        }
-
-        function processExcelData(data) {
-            const workbook = XLSX.read(data, { type: 'array', cellDates: true });
-            const sheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[sheetName];
-
-            const jsonData = XLSX.utils.sheet_to_json(worksheet, {
-                range: HEADER_ROW,
-                defval: null
-            });
-
-            const guarulhosData = jsonData.filter(row => {
-                const municipio = row['MUNICÍPIO'] || row['MUNICIPIO'];
-                return municipio && municipio.toString().toUpperCase() === 'GUARULHOS';
-            });
-
-            if (guarulhosData.length === 0) {
-                throw new Error('Nenhum dado encontrado para Guarulhos');
-            }
-
-            let maxDate = null;
-            guarulhosData.forEach(row => {
-                const dataFinal = excelDateToJS(row['DATA FINAL']);
-                if (!maxDate || dataFinal > maxDate) {
-                    maxDate = dataFinal;
-                }
-            });
-
-            const latestData = guarulhosData.filter(row => {
-                const dataFinal = excelDateToJS(row['DATA FINAL']);
-                return dataFinal.getTime() === maxDate.getTime();
-            });
-
-            let minDate = null;
-            latestData.forEach(row => {
-                const dataInicial = excelDateToJS(row['DATA INICIAL']);
-                if (!minDate || dataInicial < minDate) {
-                    minDate = dataInicial;
-                }
-            });
-
-            const prices = {
-                gasolinaComum: null,
-                etanol: null,
-                diesel: null,
-                gnv: null
-            };
-
-            latestData.forEach(row => {
-                const produto = (row['PRODUTO'] || '').toString().toUpperCase();
-                const preco = row['PREÇO MÉDIO REVENDA'];
-
-                if (produto.includes('GASOLINA COMUM')) {
-                    prices.gasolinaComum = preco !== null && !isNaN(preco) ? parseFloat(preco) : null;
-                } else if (produto.includes('ETANOL')) {
-                    prices.etanol = preco !== null && !isNaN(preco) ? parseFloat(preco) : null;
-                } else if (produto.includes('DIESEL') && !produto.includes('S10')) {
-                    prices.diesel = preco !== null && !isNaN(preco) ? parseFloat(preco) : null;
-                } else if (produto.includes('GNV')) {
-                    prices.gnv = preco !== null && !isNaN(preco) ? parseFloat(preco) : null;
-                }
-            });
-
-            return { prices, periodStart: minDate, periodEnd: maxDate };
-        }
-
-        async function fetchFuelPrices() {
+        async function fetchFuelPrices(forceRefresh = false) {
             if (isLoading) return;
 
             setLoading(true);
             hideError();
 
             try {
-                const response = await fetch(CORS_PROXY + encodeURIComponent(EXCEL_URL));
+                const url = forceRefresh ? `${API_URL}?refresh=true` : API_URL;
+                const response = await fetch(url);
 
                 if (!response.ok) {
-                    throw new Error('Erro ao baixar arquivo: ' + response.status);
+                    throw new Error('Erro ao buscar dados: ' + response.status);
                 }
 
-                const arrayBuffer = await response.arrayBuffer();
-                const data = new Uint8Array(arrayBuffer);
+                const result = await response.json();
 
-                const result = processExcelData(data);
-                updateUI(result.prices, result.periodStart, result.periodEnd);
+                if (!result.success) {
+                    throw new Error(result.error || 'Erro desconhecido');
+                }
+
+                updateUI(result.data, result.periodStart, result.periodEnd);
 
             } catch (error) {
                 console.error('Error fetching fuel prices:', error);
@@ -1288,13 +1125,8 @@ GASOLINA R$ ${gasolinaFormatted}
         setInterval(checkAutoUpdate, 60000);
         checkAutoUpdate();
 
-        // Initial load - check cache first
-        if (isCacheValid() && loadCachedData()) {
-            console.log('Loaded data from cache');
-        } else {
-            console.log('Cache invalid or empty, fetching new data');
-            fetchFuelPrices();
-        }
+        // Initial load - fetch from server (data is cached on Vercel CDN)
+        fetchFuelPrices();
     </script>
 </body>
 </html>

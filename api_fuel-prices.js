@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+const XLSX = require('xlsx');
 
 const EXCEL_URL = 'https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-revenda-e-de-distribuicao-combustiveis/shlp/semanal/semanal-municipio-2024-2025.xlsx';
 const HEADER_ROW = 11;
@@ -14,6 +14,25 @@ function formatDate(date) {
     return date.toISOString().split('T')[0];
 }
 
+function getSecondsUntil7AM() {
+    const now = new Date();
+    const target = new Date(now);
+
+    // Set to today's 7:00 AM
+    target.setHours(7, 0, 0, 0);
+
+    // If it's already past 7:00 AM, set to tomorrow's 7:00 AM
+    if (now >= target) {
+        target.setDate(target.getDate() + 1);
+    }
+
+    const diffMs = target - now;
+    const diffSeconds = Math.floor(diffMs / 1000);
+
+    // Minimum 60 seconds, maximum 24 hours
+    return Math.max(60, Math.min(diffSeconds, 86400));
+}
+
 async function fetchAndProcessExcel() {
     const response = await fetch(EXCEL_URL, {
         headers: {
@@ -22,7 +41,7 @@ async function fetchAndProcessExcel() {
     });
 
     if (!response.ok) {
-        throw new Error(`Failed to fetch Excel: ${response.status}`);
+        throw new Error('Failed to fetch Excel: ' + response.status);
     }
 
     const arrayBuffer = await response.arrayBuffer();
@@ -37,7 +56,7 @@ async function fetchAndProcessExcel() {
         defval: null
     });
 
-    const guarulhosData = jsonData.filter(row => {
+    const guarulhosData = jsonData.filter(function(row) {
         const municipio = row['MUNICÍPIO'] || row['MUNICIPIO'];
         return municipio && municipio.toString().toUpperCase() === 'GUARULHOS';
     });
@@ -47,20 +66,20 @@ async function fetchAndProcessExcel() {
     }
 
     let maxDate = null;
-    guarulhosData.forEach(row => {
+    guarulhosData.forEach(function(row) {
         const dataFinal = excelDateToJS(row['DATA FINAL']);
         if (!maxDate || dataFinal > maxDate) {
             maxDate = dataFinal;
         }
     });
 
-    const latestData = guarulhosData.filter(row => {
+    const latestData = guarulhosData.filter(function(row) {
         const dataFinal = excelDateToJS(row['DATA FINAL']);
         return dataFinal.getTime() === maxDate.getTime();
     });
 
     let minDate = null;
-    latestData.forEach(row => {
+    latestData.forEach(function(row) {
         const dataInicial = excelDateToJS(row['DATA INICIAL']);
         if (!minDate || dataInicial < minDate) {
             minDate = dataInicial;
@@ -74,7 +93,7 @@ async function fetchAndProcessExcel() {
         gnv: null
     };
 
-    latestData.forEach(row => {
+    latestData.forEach(function(row) {
         const produto = (row['PRODUTO'] || '').toString().toUpperCase();
         const preco = row['PREÇO MÉDIO REVENDA'];
 
@@ -98,24 +117,43 @@ async function fetchAndProcessExcel() {
     };
 }
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
+    // CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate');
 
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
     }
 
+    // Check if this is a forced refresh (bypass cache)
+    const forceRefresh = req.query.refresh === 'true';
+
     try {
         const result = await fetchAndProcessExcel();
+
+        // Calculate seconds until next 7:00 AM for cache duration
+        const cacheSeconds = getSecondsUntil7AM();
+
+        // Set cache headers - cache until 7:00 AM next day
+        // s-maxage = CDN cache (Vercel edge)
+        // stale-while-revalidate = serve stale content while fetching new
+        if (!forceRefresh) {
+            res.setHeader('Cache-Control', `s-maxage=${cacheSeconds}, stale-while-revalidate=60`);
+        } else {
+            // For forced refresh, don't cache
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        }
+
         return res.status(200).json(result);
     } catch (error) {
         console.error('Error:', error);
+        // Don't cache errors
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         return res.status(500).json({
             success: false,
             error: error.message
         });
     }
-}
+};
