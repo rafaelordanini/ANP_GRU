@@ -1,5 +1,0 @@
-{
-  "rewrites": [
-    { "source": "/api/fuel-prices", "destination": "/api/fuel-prices" }
-  ]
-}
