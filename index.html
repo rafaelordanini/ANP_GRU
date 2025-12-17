@@ -618,85 +618,6 @@
             transform: none;
         }
 
-        .upload-container {
-            margin-top: 16px;
-            padding: 16px;
-            border: 2px dashed var(--border);
-            border-radius: 12px;
-            text-align: center;
-            transition: all 0.3s ease;
-        }
-
-        .upload-container:hover {
-            border-color: var(--accent);
-            background: var(--accent-light);
-        }
-
-        .upload-container.has-file {
-            border-color: #25D366;
-            background: rgba(37, 211, 102, 0.1);
-        }
-
-        .upload-label {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 8px;
-            cursor: pointer;
-            color: var(--text-secondary);
-        }
-
-        .upload-label i {
-            font-size: 2rem;
-            color: var(--accent);
-        }
-
-        .upload-container.has-file .upload-label i {
-            color: #25D366;
-        }
-
-        .upload-label span {
-            font-size: 0.9rem;
-        }
-
-        .upload-input {
-            display: none;
-        }
-
-        .file-info {
-            display: none;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            margin-top: 10px;
-            padding: 10px;
-            background: rgba(37, 211, 102, 0.1);
-            border-radius: 8px;
-            color: var(--text-primary);
-            font-size: 0.9rem;
-        }
-
-        .file-info.show {
-            display: flex;
-        }
-
-        .file-info i {
-            color: #25D366;
-        }
-
-        .remove-file {
-            background: none;
-            border: none;
-            color: var(--danger);
-            cursor: pointer;
-            padding: 4px;
-            font-size: 1rem;
-        }
-
-        .remove-file:hover {
-            color: #dc2626;
-        }
-
         .download-link {
             display: inline-flex;
             align-items: center;
@@ -726,13 +647,6 @@
         .dark .download-link:hover {
             background: var(--accent);
             color: white;
-        }
-
-        .pdf-note {
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            margin-top: 12px;
-            font-style: italic;
         }
 
         footer {
@@ -890,27 +804,6 @@
                 <i class="fab fa-whatsapp"></i>
                 Enviar pelo WhatsApp
             </button>
-
-            <div class="upload-container" id="uploadContainer">
-                <label class="upload-label" for="pdfUpload">
-                    <i class="fas fa-file-pdf"></i>
-                    <span>Clique para anexar PDF dos Postos Credenciados</span>
-                    <span style="font-size: 0.8rem; color: var(--text-muted);">(opcional)</span>
-                </label>
-                <input type="file" id="pdfUpload" class="upload-input" accept=".pdf" onchange="handleFileUpload(this)">
-            </div>
-
-            <div class="file-info" id="fileInfo">
-                <i class="fas fa-file-pdf"></i>
-                <span id="fileName"></span>
-                <button class="remove-file" onclick="removeFile()">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-
-            <p class="pdf-note" id="pdfNote" style="display: none;">
-                <i class="fas fa-info-circle"></i> O PDF será aberto para você anexar manualmente no WhatsApp após a mensagem ser criada.
-            </p>
         </div>
 
         <footer>
@@ -969,7 +862,6 @@
 
         let isLoading = false;
         let lastCheckHour = -1;
-        let uploadedFile = null;
         let currentPrices = { gasolinaComum: null, etanol: null };
 
         // WhatsApp Functions
@@ -999,25 +891,6 @@
             return `${day}/${month}/${year}`;
         }
 
-        function handleFileUpload(input) {
-            const file = input.files[0];
-            if (file && file.type === 'application/pdf') {
-                uploadedFile = file;
-                document.getElementById('uploadContainer').classList.add('has-file');
-                document.getElementById('fileName').textContent = file.name;
-                document.getElementById('fileInfo').classList.add('show');
-                document.getElementById('pdfNote').style.display = 'block';
-            }
-        }
-
-        function removeFile() {
-            uploadedFile = null;
-            document.getElementById('pdfUpload').value = '';
-            document.getElementById('uploadContainer').classList.remove('has-file');
-            document.getElementById('fileInfo').classList.remove('show');
-            document.getElementById('pdfNote').style.display = 'none';
-        }
-
         function openWhatsApp() {
             const gasolinaPrice = currentPrices.gasolinaComum;
             const etanolPrice = currentPrices.etanol;
@@ -1045,12 +918,6 @@ GASOLINA R$ ${gasolinaFormatted}
 
             const encodedMessage = encodeURIComponent(message);
             const whatsappUrl = `https://web.whatsapp.com/send?text=${encodedMessage}`;
-
-            // If there's an uploaded PDF, open it in a new tab so user can drag it to WhatsApp
-            if (uploadedFile) {
-                const pdfUrl = URL.createObjectURL(uploadedFile);
-                window.open(pdfUrl, '_blank');
-            }
 
             // Open WhatsApp Web
             window.open(whatsappUrl, '_blank');
