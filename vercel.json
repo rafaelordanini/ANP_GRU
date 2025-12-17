@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/fuel-prices.js": {
+      "maxDuration": 60
+    }
+  }
+}
