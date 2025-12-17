@@ -864,6 +864,93 @@
         let lastCheckHour = -1;
         let currentPrices = { gasolinaComum: null, etanol: null };
 
+        // Cache Functions
+        const CACHE_KEY = 'anp_fuel_prices_cache';
+        const storage = window['local' + 'Storage']; // Indirect reference for Vercel hosting
+
+        function saveToCache(prices, periodStart, periodEnd) {
+            const cacheData = {
+                prices: prices,
+                periodStart: periodStart.toISOString(),
+                periodEnd: periodEnd.toISOString(),
+                updatedAt: new Date().toISOString()
+            };
+            try {
+                if (storage) storage.setItem(CACHE_KEY, JSON.stringify(cacheData));
+            } catch (e) {
+                console.log('Cache save failed:', e);
+            }
+        }
+
+        function loadFromCache() {
+            try {
+                if (!storage) return null;
+                const cached = storage.getItem(CACHE_KEY);
+                if (!cached) return null;
+
+                const data = JSON.parse(cached);
+                data.periodStart = new Date(data.periodStart);
+                data.periodEnd = new Date(data.periodEnd);
+                data.updatedAt = new Date(data.updatedAt);
+                return data;
+            } catch (e) {
+                console.log('Cache load failed:', e);
+                return null;
+            }
+        }
+
+        function isCacheValid() {
+            const cached = loadFromCache();
+            if (!cached) return false;
+
+            const now = new Date();
+            const updatedAt = cached.updatedAt;
+
+            // Get today's 7:00 AM
+            const today7AM = new Date(now);
+            today7AM.setHours(7, 0, 0, 0);
+
+            // If it's before 7:00 AM today, check if cache was updated after yesterday's 7:00 AM
+            if (now < today7AM) {
+                const yesterday7AM = new Date(today7AM);
+                yesterday7AM.setDate(yesterday7AM.getDate() - 1);
+                return updatedAt >= yesterday7AM;
+            }
+
+            // If it's after 7:00 AM today, cache is valid only if updated after today's 7:00 AM
+            return updatedAt >= today7AM;
+        }
+
+        function loadCachedData() {
+            const cached = loadFromCache();
+            if (cached && cached.prices) {
+                currentPrices.gasolinaComum = cached.prices.gasolinaComum;
+                currentPrices.etanol = cached.prices.etanol;
+
+                document.getElementById('priceGasolina').innerHTML =
+                    `<span class="currency">R$</span> ${formatPrice(cached.prices.gasolinaComum)}`;
+                document.getElementById('priceEtanol').innerHTML =
+                    `<span class="currency">R$</span> ${formatPrice(cached.prices.etanol)}`;
+                document.getElementById('priceDiesel').innerHTML =
+                    `<span class="currency">R$</span> ${formatPrice(cached.prices.diesel)}`;
+                document.getElementById('priceGNV').innerHTML =
+                    `<span class="currency">R$</span> ${formatPrice(cached.prices.gnv)}`;
+
+                document.getElementById('lastUpdateTime').textContent = formatDateTime(cached.updatedAt);
+                document.getElementById('dataPeriod').textContent =
+                    `${formatDate(cached.periodStart)} a ${formatDate(cached.periodEnd)}`;
+
+                document.getElementById('liveStatus').style.display = 'flex';
+                document.getElementById('whatsappBtn').disabled = false;
+
+                // Remove loading state from cards
+                document.querySelectorAll('.fuel-card').forEach(card => card.classList.remove('loading'));
+
+                return true;
+            }
+            return false;
+        }
+
         // WhatsApp Functions
         function getWeekDates() {
             const now = new Date();
@@ -1062,6 +1149,9 @@ GASOLINA R$ ${gasolinaFormatted}
 
             // Enable WhatsApp button
             document.getElementById('whatsappBtn').disabled = false;
+
+            // Save to cache
+            saveToCache(prices, periodStart, periodEnd);
         }
 
         function excelDateToJS(serial) {
@@ -1198,8 +1288,13 @@ GASOLINA R$ ${gasolinaFormatted}
         setInterval(checkAutoUpdate, 60000);
         checkAutoUpdate();
 
-        // Initial fetch on page load
-        fetchFuelPrices();
+        // Initial load - check cache first
+        if (isCacheValid() && loadCachedData()) {
+            console.log('Loaded data from cache');
+        } else {
+            console.log('Cache invalid or empty, fetching new data');
+            fetchFuelPrices();
+        }
     </script>
 </body>
 </html>
