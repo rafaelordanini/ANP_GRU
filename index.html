@@ -812,6 +812,8 @@
         </footer>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
     <!-- Password Modal -->
     <div class="modal-overlay" id="passwordModal">
         <div class="modal">
@@ -853,7 +855,9 @@
             }
         });
 
-        const API_URL = '/api/fuel-prices';
+        const EXCEL_URL = 'https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-revenda-e-de-distribuicao-combustiveis/shlp/semanal/semanal-municipio-2024-2025.xlsx';
+        const CORS_PROXY = 'https://corsproxy.io/?';
+        const HEADER_ROW = 11;
         const UPDATE_PASSWORD = 'transportescmg';
 
         let isLoading = false;
@@ -864,20 +868,12 @@
         function getWeekDates() {
             const now = new Date();
             const dayOfWeek = now.getDay();
-
-            // Calculate Monday (day 1) of current week
             const monday = new Date(now);
             const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
             monday.setDate(now.getDate() + diffToMonday);
-
-            // Calculate Friday (day 5) of current week
             const friday = new Date(monday);
             friday.setDate(monday.getDate() + 4);
-
-            return {
-                monday: monday,
-                friday: friday
-            };
+            return { monday, friday };
         }
 
         function formatDateBR(date) {
@@ -892,14 +888,13 @@
             const etanolPrice = currentPrices.etanol;
 
             if (gasolinaPrice === null || etanolPrice === null) {
-                showWhatsAppError('Os preços ainda não foram carregados. Aguarde o carregamento dos dados.');
+                showWhatsAppError('Os preços ainda não foram carregados.');
                 return;
             }
 
             const weekDates = getWeekDates();
             const mondayStr = formatDateBR(weekDates.monday);
             const fridayStr = formatDateBR(weekDates.friday);
-
             const gasolinaFormatted = gasolinaPrice.toFixed(2).replace('.', ',');
             const etanolFormatted = etanolPrice.toFixed(2).replace('.', ',');
 
@@ -913,10 +908,7 @@ GASOLINA R$ ${gasolinaFormatted}
 ÁLCOOL   R$ ${etanolFormatted}`;
 
             const encodedMessage = encodeURIComponent(message);
-            const whatsappUrl = `https://web.whatsapp.com/send?text=${encodedMessage}`;
-
-            // Open WhatsApp Web
-            window.open(whatsappUrl, '_blank');
+            window.open(`https://web.whatsapp.com/send?text=${encodedMessage}`, '_blank');
         }
 
         function showWhatsAppError(message) {
@@ -956,7 +948,7 @@ GASOLINA R$ ${gasolinaFormatted}
 
             if (password === UPDATE_PASSWORD) {
                 closePasswordModal();
-                fetchFuelPrices(true); // Force refresh bypasses server cache
+                fetchFuelPrices();
             } else {
                 input.classList.add('error');
                 input.value = '';
@@ -967,16 +959,11 @@ GASOLINA R$ ${gasolinaFormatted}
             }
         }
 
-        // Handle Enter key in password input
         document.addEventListener('DOMContentLoaded', function() {
             const passwordInput = document.getElementById('passwordInput');
             passwordInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    validatePassword();
-                }
+                if (e.key === 'Enter') validatePassword();
             });
-
-            // Close modals on overlay click
             document.getElementById('passwordModal').addEventListener('click', function(e) {
                 if (e.target === this) closePasswordModal();
             });
@@ -991,19 +978,16 @@ GASOLINA R$ ${gasolinaFormatted}
         }
 
         function formatDateTime(date) {
-            const options = {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            };
-            return date.toLocaleDateString('pt-BR', options);
+            return date.toLocaleDateString('pt-BR', {
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
         }
 
         function formatDate(date) {
-            const options = { day: '2-digit', month: '2-digit', year: 'numeric' };
-            return date.toLocaleDateString('pt-BR', options);
+            return date.toLocaleDateString('pt-BR', {
+                day: '2-digit', month: '2-digit', year: 'numeric'
+            });
         }
 
         function setLoading(loading) {
@@ -1026,8 +1010,7 @@ GASOLINA R$ ${gasolinaFormatted}
 
         function showError(message) {
             const errorDiv = document.getElementById('errorMessage');
-            const errorText = document.getElementById('errorText');
-            errorText.textContent = message;
+            document.getElementById('errorText').textContent = message;
             errorDiv.classList.add('show');
         }
 
@@ -1036,7 +1019,6 @@ GASOLINA R$ ${gasolinaFormatted}
         }
 
         function updateUI(prices, periodStart, periodEnd) {
-            // Store prices for WhatsApp
             currentPrices.gasolinaComum = prices.gasolinaComum;
             currentPrices.etanol = prices.etanol;
 
@@ -1051,52 +1033,96 @@ GASOLINA R$ ${gasolinaFormatted}
 
             document.getElementById('lastUpdateTime').textContent = formatDateTime(new Date());
             document.getElementById('dataPeriod').textContent =
-                `${formatDate(new Date(periodStart))} a ${formatDate(new Date(periodEnd))}`;
+                `${formatDate(periodStart)} a ${formatDate(periodEnd)}`;
 
             document.getElementById('liveStatus').style.display = 'flex';
             hideError();
-
-            // Enable WhatsApp button
             document.getElementById('whatsappBtn').disabled = false;
         }
 
-        async function fetchFuelPrices(forceRefresh = false) {
+        function excelDateToJS(serial) {
+            if (serial instanceof Date) return serial;
+            if (typeof serial === 'string') return new Date(serial);
+            const utcDays = Math.floor(serial - 25569);
+            return new Date(utcDays * 86400 * 1000);
+        }
+
+        function processExcelData(data) {
+            const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+            const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { range: HEADER_ROW, defval: null });
+
+            const guarulhosData = jsonData.filter(row => {
+                const municipio = row['MUNICÍPIO'] || row['MUNICIPIO'];
+                return municipio && municipio.toString().toUpperCase() === 'GUARULHOS';
+            });
+
+            if (guarulhosData.length === 0) {
+                throw new Error('Nenhum dado encontrado para Guarulhos');
+            }
+
+            let maxDate = null;
+            guarulhosData.forEach(row => {
+                const dataFinal = excelDateToJS(row['DATA FINAL']);
+                if (!maxDate || dataFinal > maxDate) maxDate = dataFinal;
+            });
+
+            const latestData = guarulhosData.filter(row => {
+                return excelDateToJS(row['DATA FINAL']).getTime() === maxDate.getTime();
+            });
+
+            let minDate = null;
+            latestData.forEach(row => {
+                const dataInicial = excelDateToJS(row['DATA INICIAL']);
+                if (!minDate || dataInicial < minDate) minDate = dataInicial;
+            });
+
+            const prices = { gasolinaComum: null, etanol: null, diesel: null, gnv: null };
+
+            latestData.forEach(row => {
+                const produto = (row['PRODUTO'] || '').toString().toUpperCase();
+                const preco = row['PREÇO MÉDIO REVENDA'];
+
+                if (produto.includes('GASOLINA COMUM')) {
+                    prices.gasolinaComum = preco !== null && !isNaN(preco) ? parseFloat(preco) : null;
+                } else if (produto.includes('ETANOL')) {
+                    prices.etanol = preco !== null && !isNaN(preco) ? parseFloat(preco) : null;
+                } else if (produto.includes('DIESEL') && !produto.includes('S10')) {
+                    prices.diesel = preco !== null && !isNaN(preco) ? parseFloat(preco) : null;
+                } else if (produto.includes('GNV')) {
+                    prices.gnv = preco !== null && !isNaN(preco) ? parseFloat(preco) : null;
+                }
+            });
+
+            return { prices, periodStart: minDate, periodEnd: maxDate };
+        }
+
+        async function fetchFuelPrices() {
             if (isLoading) return;
 
             setLoading(true);
             hideError();
 
             try {
-                const url = forceRefresh ? `${API_URL}?refresh=true` : API_URL;
-                const response = await fetch(url);
+                const response = await fetch(CORS_PROXY + encodeURIComponent(EXCEL_URL));
+                if (!response.ok) throw new Error('Erro ao baixar arquivo: ' + response.status);
 
-                if (!response.ok) {
-                    throw new Error('Erro ao buscar dados: ' + response.status);
-                }
-
-                const result = await response.json();
-
-                if (!result.success) {
-                    throw new Error(result.error || 'Erro desconhecido');
-                }
-
-                updateUI(result.data, result.periodStart, result.periodEnd);
-
+                const arrayBuffer = await response.arrayBuffer();
+                const result = processExcelData(new Uint8Array(arrayBuffer));
+                updateUI(result.prices, result.periodStart, result.periodEnd);
             } catch (error) {
-                console.error('Error fetching fuel prices:', error);
+                console.error('Error:', error);
                 showError('Erro ao buscar dados: ' + error.message);
             } finally {
                 setLoading(false);
             }
         }
 
-        // Check every minute if it's 7:00 AM for auto-update
         function checkAutoUpdate() {
             const now = new Date();
             const currentHour = now.getHours();
             const currentMinute = now.getMinutes();
 
-            // Trigger at 7:00 AM if we haven't already triggered this hour
             if (currentHour === 7 && currentMinute === 0 && lastCheckHour !== 7) {
                 lastCheckHour = 7;
                 fetchFuelPrices();
@@ -1104,28 +1130,22 @@ GASOLINA R$ ${gasolinaFormatted}
                 lastCheckHour = -1;
             }
 
-            // Update next update time display
             const nextUpdate = new Date();
-            if (currentHour >= 7) {
-                nextUpdate.setDate(nextUpdate.getDate() + 1);
-            }
+            if (currentHour >= 7) nextUpdate.setDate(nextUpdate.getDate() + 1);
             nextUpdate.setHours(7, 0, 0, 0);
 
             const hoursUntil = Math.floor((nextUpdate - now) / (1000 * 60 * 60));
             const minutesUntil = Math.floor(((nextUpdate - now) % (1000 * 60 * 60)) / (1000 * 60));
 
-            if (hoursUntil > 0) {
-                document.getElementById('nextUpdateTime').textContent = `${hoursUntil}h ${minutesUntil}min`;
-            } else {
-                document.getElementById('nextUpdateTime').textContent = `${minutesUntil}min`;
-            }
+            document.getElementById('nextUpdateTime').textContent = hoursUntil > 0
+                ? `${hoursUntil}h ${minutesUntil}min`
+                : `${minutesUntil}min`;
         }
 
-        // Check every minute
         setInterval(checkAutoUpdate, 60000);
         checkAutoUpdate();
 
-        // Initial load - fetch from server (data is cached on Vercel CDN)
+        // Initial load
         fetchFuelPrices();
     </script>
 </body>
