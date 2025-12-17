@@ -570,6 +570,171 @@
             width: 100%;
         }
 
+        /* WhatsApp Section */
+        .whatsapp-section {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            margin-top: 20px;
+            animation: fadeInUp 0.6s ease-out 0.75s both;
+        }
+
+        .whatsapp-section .info-title {
+            color: #25D366;
+        }
+
+        .whatsapp-section .info-title i {
+            color: #25D366;
+        }
+
+        .whatsapp-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 28px;
+            background: linear-gradient(135deg, #25D366, #128C7E);
+            color: white;
+            border: none;
+            border-radius: 14px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 14px rgba(37, 211, 102, 0.4);
+            margin-top: 16px;
+        }
+
+        .whatsapp-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(37, 211, 102, 0.5);
+        }
+
+        .whatsapp-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .upload-container {
+            margin-top: 16px;
+            padding: 16px;
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .upload-container:hover {
+            border-color: var(--accent);
+            background: var(--accent-light);
+        }
+
+        .upload-container.has-file {
+            border-color: #25D366;
+            background: rgba(37, 211, 102, 0.1);
+        }
+
+        .upload-label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            color: var(--text-secondary);
+        }
+
+        .upload-label i {
+            font-size: 2rem;
+            color: var(--accent);
+        }
+
+        .upload-container.has-file .upload-label i {
+            color: #25D366;
+        }
+
+        .upload-label span {
+            font-size: 0.9rem;
+        }
+
+        .upload-input {
+            display: none;
+        }
+
+        .file-info {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(37, 211, 102, 0.1);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+        }
+
+        .file-info.show {
+            display: flex;
+        }
+
+        .file-info i {
+            color: #25D366;
+        }
+
+        .remove-file {
+            background: none;
+            border: none;
+            color: var(--danger);
+            cursor: pointer;
+            padding: 4px;
+            font-size: 1rem;
+        }
+
+        .remove-file:hover {
+            color: #dc2626;
+        }
+
+        .download-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 12px;
+            padding: 8px 16px;
+            background: var(--accent-light);
+            color: var(--accent-dark);
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .download-link:hover {
+            background: var(--accent);
+            color: white;
+            text-decoration: none;
+        }
+
+        .dark .download-link {
+            background: rgba(56, 189, 248, 0.2);
+            color: var(--accent);
+        }
+
+        .dark .download-link:hover {
+            background: var(--accent);
+            color: white;
+        }
+
+        .pdf-note {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 12px;
+            font-style: italic;
+        }
+
         footer {
             text-align: center;
             margin-top: 30px;
@@ -702,7 +867,50 @@
                 Série Histórica de Preços da ANP</a> (Agência Nacional do Petróleo, Gás Natural e Biocombustíveis).
                 <br><br>
                 <i class="far fa-calendar-alt"></i> Período dos dados: <span class="data-period" id="dataPeriod">Carregando...</span>
+                <br>
+                <a href="https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-revenda-e-de-distribuicao-combustiveis/shlp/semanal/semanal-municipio-2024-2025.xlsx"
+                   target="_blank" class="download-link">
+                    <i class="fas fa-download"></i>
+                    Baixar Planilha da ANP
+                </a>
             </div>
+        </div>
+
+        <!-- WhatsApp Section -->
+        <div class="whatsapp-section">
+            <div class="info-title">
+                <i class="fab fa-whatsapp"></i>
+                Compartilhar via WhatsApp
+            </div>
+            <div class="info-text">
+                Envie os preços atualizados para um grupo ou contato no WhatsApp. A mensagem será montada automaticamente com os valores da semana atual.
+            </div>
+
+            <button class="whatsapp-btn" id="whatsappBtn" onclick="openWhatsApp()" disabled>
+                <i class="fab fa-whatsapp"></i>
+                Enviar pelo WhatsApp
+            </button>
+
+            <div class="upload-container" id="uploadContainer">
+                <label class="upload-label" for="pdfUpload">
+                    <i class="fas fa-file-pdf"></i>
+                    <span>Clique para anexar PDF dos Postos Credenciados</span>
+                    <span style="font-size: 0.8rem; color: var(--text-muted);">(opcional)</span>
+                </label>
+                <input type="file" id="pdfUpload" class="upload-input" accept=".pdf" onchange="handleFileUpload(this)">
+            </div>
+
+            <div class="file-info" id="fileInfo">
+                <i class="fas fa-file-pdf"></i>
+                <span id="fileName"></span>
+                <button class="remove-file" onclick="removeFile()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <p class="pdf-note" id="pdfNote" style="display: none;">
+                <i class="fas fa-info-circle"></i> O PDF será aberto para você anexar manualmente no WhatsApp após a mensagem ser criada.
+            </p>
         </div>
 
         <footer>
@@ -761,6 +969,100 @@
 
         let isLoading = false;
         let lastCheckHour = -1;
+        let uploadedFile = null;
+        let currentPrices = { gasolinaComum: null, etanol: null };
+
+        // WhatsApp Functions
+        function getWeekDates() {
+            const now = new Date();
+            const dayOfWeek = now.getDay();
+
+            // Calculate Monday (day 1) of current week
+            const monday = new Date(now);
+            const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+            monday.setDate(now.getDate() + diffToMonday);
+
+            // Calculate Friday (day 5) of current week
+            const friday = new Date(monday);
+            friday.setDate(monday.getDate() + 4);
+
+            return {
+                monday: monday,
+                friday: friday
+            };
+        }
+
+        function formatDateBR(date) {
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            return `${day}/${month}/${year}`;
+        }
+
+        function handleFileUpload(input) {
+            const file = input.files[0];
+            if (file && file.type === 'application/pdf') {
+                uploadedFile = file;
+                document.getElementById('uploadContainer').classList.add('has-file');
+                document.getElementById('fileName').textContent = file.name;
+                document.getElementById('fileInfo').classList.add('show');
+                document.getElementById('pdfNote').style.display = 'block';
+            }
+        }
+
+        function removeFile() {
+            uploadedFile = null;
+            document.getElementById('pdfUpload').value = '';
+            document.getElementById('uploadContainer').classList.remove('has-file');
+            document.getElementById('fileInfo').classList.remove('show');
+            document.getElementById('pdfNote').style.display = 'none';
+        }
+
+        function openWhatsApp() {
+            const gasolinaPrice = currentPrices.gasolinaComum;
+            const etanolPrice = currentPrices.etanol;
+
+            if (gasolinaPrice === null || etanolPrice === null) {
+                showWhatsAppError('Os preços ainda não foram carregados. Aguarde o carregamento dos dados.');
+                return;
+            }
+
+            const weekDates = getWeekDates();
+            const mondayStr = formatDateBR(weekDates.monday);
+            const fridayStr = formatDateBR(weekDates.friday);
+
+            const gasolinaFormatted = gasolinaPrice.toFixed(2).replace('.', ',');
+            const etanolFormatted = etanolPrice.toFixed(2).replace('.', ',');
+
+            const message = `Bom dia a todos!
+Segue a lista dos Postos Credenciados para Abastecimento no período de ${mondayStr} a ${fridayStr}.
+Além disso, informamos os valores máximos autorizados para abastecimento nesta semana:
+
+Atenção: antes de abastecer, confirme o preço na bomba.
+
+GASOLINA R$ ${gasolinaFormatted}
+ÁLCOOL   R$ ${etanolFormatted}`;
+
+            const encodedMessage = encodeURIComponent(message);
+            const whatsappUrl = `https://web.whatsapp.com/send?text=${encodedMessage}`;
+
+            // If there's an uploaded PDF, open it in a new tab so user can drag it to WhatsApp
+            if (uploadedFile) {
+                const pdfUrl = URL.createObjectURL(uploadedFile);
+                window.open(pdfUrl, '_blank');
+            }
+
+            // Open WhatsApp Web
+            window.open(whatsappUrl, '_blank');
+        }
+
+        function showWhatsAppError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            const errorText = document.getElementById('errorText');
+            errorText.textContent = message;
+            errorDiv.classList.add('show');
+            setTimeout(() => errorDiv.classList.remove('show'), 5000);
+        }
 
         // Modal Functions
         function showPasswordModal() {
@@ -871,6 +1173,10 @@
         }
 
         function updateUI(prices, periodStart, periodEnd) {
+            // Store prices for WhatsApp
+            currentPrices.gasolinaComum = prices.gasolinaComum;
+            currentPrices.etanol = prices.etanol;
+
             document.getElementById('priceGasolina').innerHTML =
                 `<span class="currency">R$</span> ${formatPrice(prices.gasolinaComum)}`;
             document.getElementById('priceEtanol').innerHTML =
@@ -886,6 +1192,9 @@
 
             document.getElementById('liveStatus').style.display = 'flex';
             hideError();
+
+            // Enable WhatsApp button
+            document.getElementById('whatsappBtn').disabled = false;
         }
 
         function excelDateToJS(serial) {
