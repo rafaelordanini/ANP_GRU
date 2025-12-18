@@ -187,6 +187,23 @@
             animation: pulse 2s infinite;
         }
 
+        .status-item.reference-week {
+            background: linear-gradient(135deg, var(--accent-light), rgba(168, 85, 247, 0.15));
+            border: 1px solid var(--accent);
+        }
+
+        .status-item.reference-week i {
+            color: var(--accent);
+        }
+
+        .status-item.reference-week strong {
+            color: var(--accent-dark);
+        }
+
+        .dark .status-item.reference-week strong {
+            color: var(--accent);
+        }
+
         .fuel-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -714,6 +731,10 @@
         </header>
 
         <div class="status-bar">
+            <div class="status-item reference-week" id="referenceWeek" style="display: none;">
+                <i class="far fa-calendar-alt"></i>
+                <span>Semana: <strong id="referenceWeekText">--</strong></span>
+            </div>
             <div class="status-item" id="lastUpdate">
                 <i class="far fa-clock"></i>
                 <span>Última consulta: <strong id="lastUpdateTime">--</strong></span>
@@ -856,7 +877,11 @@
         });
 
         const EXCEL_URL = 'https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-revenda-e-de-distribuicao-combustiveis/shlp/semanal/semanal-municipio-2024-2025.xlsx';
-        const CORS_PROXY = 'https://corsproxy.io/?';
+        const CORS_PROXIES = [
+            'https://api.allorigins.win/raw?url=',
+            'https://corsproxy.io/?',
+            'https://api.codetabs.com/v1/proxy?quest='
+        ];
         const HEADER_ROW = 11;
         const UPDATE_PASSWORD = 'transportescmg';
 
@@ -1032,8 +1057,12 @@ GASOLINA R$ ${gasolinaFormatted}
                 `<span class="currency">R$</span> ${formatPrice(prices.gnv)}`;
 
             document.getElementById('lastUpdateTime').textContent = formatDateTime(new Date());
-            document.getElementById('dataPeriod').textContent =
-                `${formatDate(periodStart)} a ${formatDate(periodEnd)}`;
+
+            // Update reference week (from ANP data)
+            const weekText = `${formatDate(periodStart)} a ${formatDate(periodEnd)}`;
+            document.getElementById('referenceWeekText').textContent = weekText;
+            document.getElementById('referenceWeek').style.display = 'flex';
+            document.getElementById('dataPeriod').textContent = weekText;
 
             document.getElementById('liveStatus').style.display = 'flex';
             hideError();
@@ -1103,19 +1132,30 @@ GASOLINA R$ ${gasolinaFormatted}
             setLoading(true);
             hideError();
 
-            try {
-                const response = await fetch(CORS_PROXY + encodeURIComponent(EXCEL_URL));
-                if (!response.ok) throw new Error('Erro ao baixar arquivo: ' + response.status);
+            let lastError = null;
 
-                const arrayBuffer = await response.arrayBuffer();
-                const result = processExcelData(new Uint8Array(arrayBuffer));
-                updateUI(result.prices, result.periodStart, result.periodEnd);
-            } catch (error) {
-                console.error('Error:', error);
-                showError('Erro ao buscar dados: ' + error.message);
-            } finally {
-                setLoading(false);
+            // Try each CORS proxy until one works
+            for (const proxy of CORS_PROXIES) {
+                try {
+                    const response = await fetch(proxy + encodeURIComponent(EXCEL_URL));
+                    if (!response.ok) throw new Error('Erro ao baixar arquivo: ' + response.status);
+
+                    const arrayBuffer = await response.arrayBuffer();
+                    const result = processExcelData(new Uint8Array(arrayBuffer));
+                    updateUI(result.prices, result.periodStart, result.periodEnd);
+                    setLoading(false);
+                    return; // Success, exit the function
+                } catch (error) {
+                    console.warn('Proxy failed:', proxy, error.message);
+                    lastError = error;
+                    // Continue to next proxy
+                }
             }
+
+            // All proxies failed
+            console.error('All proxies failed:', lastError);
+            showError('Erro ao buscar dados: ' + (lastError ? lastError.message : 'Todos os servidores falharam'));
+            setLoading(false);
         }
 
         function checkAutoUpdate() {
