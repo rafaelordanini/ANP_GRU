@@ -50,10 +50,13 @@ jobs:
             console.log('Starting browser...');
             const browser = await puppeteer.launch({
               headless: 'new',
-              args: ['--no-sandbox', '--disable-setuid-sandbox']
+              args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
             });
 
             const page = await browser.newPage();
+
+            // Set viewport
+            await page.setViewport({ width: 1920, height: 1080 });
 
             // Set download behavior
             const downloadPath = path.resolve('./downloads');
@@ -74,160 +77,236 @@ jobs:
                 waitUntil: 'networkidle2',
                 timeout: 60000
               });
-              await sleep(2000);
+              await sleep(3000);
 
-              // Step 2: Fill login form
+              // Take screenshot to debug
+              await page.screenshot({ path: 'step1-login-page.png', fullPage: true });
+              console.log('Screenshot saved: step1-login-page.png');
+
+              // Step 2: Fill login form using specific IDs
               console.log('Step 2: Filling login form...');
 
-              // Find and fill Empresa Cliente field
-              await page.waitForSelector('input[type="text"]', { timeout: 10000 });
-              const inputs = await page.$$('input[type="text"], input[type="password"]');
+              // Fill Empresa Cliente (id="cliente")
+              await page.waitForSelector('#cliente', { timeout: 10000 });
+              await page.click('#cliente', { clickCount: 3 });
+              await page.type('#cliente', PRIME_EMPRESA, { delay: 50 });
+              console.log('Filled empresa:', PRIME_EMPRESA);
+              await sleep(500);
 
-              // Usually: first input = empresa, second = usuario, third = senha
-              if (inputs.length >= 2) {
-                await inputs[0].click({ clickCount: 3 });
-                await inputs[0].type(PRIME_EMPRESA);
-                await sleep(500);
+              // Fill Login (id="login")
+              await page.waitForSelector('#login', { timeout: 10000 });
+              await page.click('#login', { clickCount: 3 });
+              await page.type('#login', PRIME_USUARIO, { delay: 50 });
+              console.log('Filled usuario:', PRIME_USUARIO);
+              await sleep(500);
 
-                await inputs[1].click({ clickCount: 3 });
-                await inputs[1].type(PRIME_USUARIO);
-                await sleep(500);
-              }
+              // Fill Senha (id="pass")
+              await page.waitForSelector('#pass', { timeout: 10000 });
+              await page.click('#pass', { clickCount: 3 });
+              await page.type('#pass', PRIME_SENHA, { delay: 50 });
+              console.log('Filled senha');
+              await sleep(500);
 
-              // Find password field
-              const passwordInput = await page.$('input[type="password"]');
-              if (passwordInput) {
-                await passwordInput.click({ clickCount: 3 });
-                await passwordInput.type(PRIME_SENHA);
-                await sleep(500);
-              }
+              // Take screenshot before login
+              await page.screenshot({ path: 'step2-filled-form.png', fullPage: true });
+              console.log('Screenshot saved: step2-filled-form.png');
 
-              // Step 3: Click login button
+              // Step 3: Click login button (id="submit-form")
               console.log('Step 3: Clicking login button...');
-              const loginButton = await page.$('button, input[type="submit"], [class*="acessar"], [id*="acessar"]');
-              if (loginButton) {
-                await loginButton.click();
-              } else {
-                // Try to find button by text
-                await page.evaluate(() => {
-                  const buttons = Array.from(document.querySelectorAll('button, input[type="button"], input[type="submit"]'));
-                  const loginBtn = buttons.find(b => b.textContent.includes('Acessar') || b.value === 'Acessar');
-                  if (loginBtn) loginBtn.click();
+              await page.click('#submit-form');
+
+              // Wait for navigation
+              try {
+                await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 });
+              } catch (e) {
+                console.log('Navigation timeout, continuing...');
+              }
+              await sleep(5000);
+
+              console.log('Current URL after login:', page.url());
+              await page.screenshot({ path: 'step3-after-login.png', fullPage: true });
+              console.log('Screenshot saved: step3-after-login.png');
+
+              // Check if login was successful (URL should change to Admin/Admin.aspx)
+              if (page.url().includes('Frota') && !page.url().includes('Admin')) {
+                console.error('Login may have failed. Still on login page.');
+                // Check for error messages
+                const errorMsg = await page.evaluate(() => {
+                  const alerts = document.querySelectorAll('.alert, .error, .text-danger');
+                  return Array.from(alerts).map(a => a.textContent.trim()).join('; ');
                 });
+                if (errorMsg) {
+                  console.error('Error messages found:', errorMsg);
+                }
               }
 
-              await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 60000 });
-              await sleep(3000);
-              console.log('Logged in successfully. Current URL:', page.url());
+              // Step 4: Navigate to Admin page if not already there
+              if (!page.url().includes('Admin/Admin.aspx')) {
+                console.log('Step 4: Navigating to Admin page...');
+                await page.goto('https://sistema.primebeneficios.com.br/Admin/Admin.aspx', {
+                  waitUntil: 'networkidle2',
+                  timeout: 60000
+                });
+                await sleep(3000);
+              }
 
-              // Step 4: Click on CONSULTA menu
-              console.log('Step 4: Clicking on CONSULTA menu...');
-              await page.waitForSelector('a, span, div', { timeout: 10000 });
+              console.log('Current URL:', page.url());
+              await page.screenshot({ path: 'step4-admin-page.png', fullPage: true });
+              console.log('Screenshot saved: step4-admin-page.png');
+
+              // Step 5: Click on CONSULTA menu
+              console.log('Step 5: Clicking on CONSULTA menu...');
               await page.evaluate(() => {
-                const elements = Array.from(document.querySelectorAll('a, span, div, li'));
-                const consulta = elements.find(el => el.textContent.trim() === 'CONSULTA');
-                if (consulta) consulta.click();
-              });
-              await sleep(2000);
-
-              // Step 5: Click on Estabelecimentos
-              console.log('Step 5: Clicking on Estabelecimentos...');
-              await page.evaluate(() => {
-                const elements = Array.from(document.querySelectorAll('a, span, div, li'));
-                const estab = elements.find(el => el.textContent.trim() === 'Estabelecimentos');
-                if (estab) estab.click();
+                const links = Array.from(document.querySelectorAll('a, span, div, li'));
+                const consulta = links.find(el => el.textContent.trim().toUpperCase() === 'CONSULTA');
+                if (consulta) {
+                  console.log('Found CONSULTA element');
+                  consulta.click();
+                } else {
+                  console.log('CONSULTA not found');
+                }
               });
               await sleep(3000);
+              await page.screenshot({ path: 'step5-consulta.png', fullPage: true });
 
-              // Step 6: Expand Filtros if collapsed
-              console.log('Step 6: Expanding Filtros...');
+              // Step 6: Click on Estabelecimentos
+              console.log('Step 6: Clicking on Estabelecimentos...');
+              await page.evaluate(() => {
+                const links = Array.from(document.querySelectorAll('a, span, div, li'));
+                const estab = links.find(el => el.textContent.trim() === 'Estabelecimentos');
+                if (estab) {
+                  console.log('Found Estabelecimentos element');
+                  estab.click();
+                }
+              });
+              await sleep(3000);
+              await page.screenshot({ path: 'step6-estabelecimentos.png', fullPage: true });
+
+              // Step 7: Click on Lista submenu
+              console.log('Step 7: Clicking on Lista submenu...');
+              await page.evaluate(() => {
+                const links = Array.from(document.querySelectorAll('a, span, div, li'));
+                const lista = links.find(el => el.textContent.trim() === 'Lista');
+                if (lista) {
+                  console.log('Found Lista element');
+                  lista.click();
+                }
+              });
+              await sleep(3000);
+              await page.screenshot({ path: 'step7-lista.png', fullPage: true });
+
+              // Step 8: Expand Filtros if collapsed
+              console.log('Step 8: Expanding Filtros...');
               await page.evaluate(() => {
                 const elements = Array.from(document.querySelectorAll('a, span, div, h3, h4, button'));
                 const filtros = elements.find(el => el.textContent.includes('Filtros'));
-                if (filtros) filtros.click();
+                if (filtros) {
+                  filtros.click();
+                }
               });
               await sleep(2000);
+              await page.screenshot({ path: 'step8-filtros.png', fullPage: true });
 
-              // Step 7: Select filters
-              console.log('Step 7: Selecting filters...');
+              // Step 9: Select filters
+              console.log('Step 9: Selecting filters...');
 
               // Select UF = SP
               await page.evaluate(() => {
                 const selects = Array.from(document.querySelectorAll('select'));
-                const ufSelect = selects.find(s => {
-                  const label = s.closest('div')?.querySelector('label');
-                  return label?.textContent.includes('UF') || s.id.toLowerCase().includes('uf') || s.name?.toLowerCase().includes('uf');
-                });
-                if (ufSelect) {
-                  ufSelect.value = 'SP';
-                  ufSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                for (const sel of selects) {
+                  const options = Array.from(sel.options);
+                  const spOption = options.find(o => o.value === 'SP' || o.text === 'SP');
+                  if (spOption) {
+                    sel.value = spOption.value;
+                    sel.dispatchEvent(new Event('change', { bubbles: true }));
+                    console.log('Selected SP');
+                    break;
+                  }
                 }
               });
-              await sleep(1500);
+              await sleep(2000);
 
               // Select Cidade = GUARULHOS
               await page.evaluate(() => {
                 const selects = Array.from(document.querySelectorAll('select'));
-                const cidadeSelect = selects.find(s => {
-                  const label = s.closest('div')?.querySelector('label');
-                  return label?.textContent.includes('Cidade') || s.id.toLowerCase().includes('cidade') || s.name?.toLowerCase().includes('cidade');
-                });
-                if (cidadeSelect) {
-                  const option = Array.from(cidadeSelect.options).find(o => o.text.toUpperCase().includes('GUARULHOS'));
-                  if (option) {
-                    cidadeSelect.value = option.value;
-                    cidadeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                for (const sel of selects) {
+                  const options = Array.from(sel.options);
+                  const guarulhosOption = options.find(o => o.text.toUpperCase().includes('GUARULHOS'));
+                  if (guarulhosOption) {
+                    sel.value = guarulhosOption.value;
+                    sel.dispatchEvent(new Event('change', { bubbles: true }));
+                    console.log('Selected GUARULHOS');
+                    break;
                   }
                 }
               });
-              await sleep(1500);
+              await sleep(2000);
 
               // Select Tipo Estabelecimento = POSTO
               await page.evaluate(() => {
                 const selects = Array.from(document.querySelectorAll('select'));
-                const tipoSelect = selects.find(s => {
-                  const label = s.closest('div')?.querySelector('label');
-                  return label?.textContent.includes('Tipo') || s.id.toLowerCase().includes('tipo') || s.name?.toLowerCase().includes('tipo');
-                });
-                if (tipoSelect) {
-                  const option = Array.from(tipoSelect.options).find(o => o.text.toUpperCase().includes('POSTO'));
-                  if (option) {
-                    tipoSelect.value = option.value;
-                    tipoSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                for (const sel of selects) {
+                  const options = Array.from(sel.options);
+                  const postoOption = options.find(o => o.text.toUpperCase().includes('POSTO'));
+                  if (postoOption) {
+                    sel.value = postoOption.value;
+                    sel.dispatchEvent(new Event('change', { bubbles: true }));
+                    console.log('Selected POSTO');
+                    break;
                   }
                 }
               });
-              await sleep(1500);
+              await sleep(2000);
+              await page.screenshot({ path: 'step9-filters.png', fullPage: true });
 
-              // Step 8: Click Buscar button
-              console.log('Step 8: Clicking Buscar button...');
+              // Step 10: Click Buscar button
+              console.log('Step 10: Clicking Buscar button...');
               await page.evaluate(() => {
                 const buttons = Array.from(document.querySelectorAll('button, input[type="button"], input[type="submit"], a'));
-                const buscar = buttons.find(b => b.textContent.includes('Buscar') || b.value?.includes('Buscar'));
-                if (buscar) buscar.click();
+                const buscar = buttons.find(b =>
+                  b.textContent.includes('Buscar') ||
+                  b.value?.includes('Buscar') ||
+                  b.innerText?.includes('Buscar')
+                );
+                if (buscar) {
+                  buscar.click();
+                  console.log('Clicked Buscar');
+                }
               });
-              await sleep(5000);
+              await sleep(8000);
+              await page.screenshot({ path: 'step10-buscar.png', fullPage: true });
 
-              // Step 9: Click Ações dropdown
-              console.log('Step 9: Opening Ações dropdown...');
+              // Step 11: Click Ações dropdown
+              console.log('Step 11: Opening Ações dropdown...');
               await page.evaluate(() => {
                 const elements = Array.from(document.querySelectorAll('button, a, span, div'));
-                const acoes = elements.find(el => el.textContent.includes('Ações'));
-                if (acoes) acoes.click();
+                const acoes = elements.find(el => el.textContent.trim().includes('Ações'));
+                if (acoes) {
+                  acoes.click();
+                  console.log('Clicked Ações');
+                }
               });
-              await sleep(1500);
+              await sleep(2000);
+              await page.screenshot({ path: 'step11-acoes.png', fullPage: true });
 
-              // Step 10: Click PDF option
-              console.log('Step 10: Clicking PDF option...');
+              // Step 12: Click PDF option
+              console.log('Step 12: Clicking PDF option...');
               await page.evaluate(() => {
-                const elements = Array.from(document.querySelectorAll('a, button, span, li'));
-                const pdf = elements.find(el => el.textContent.trim() === 'PDF' || el.textContent.includes('PDF'));
-                if (pdf) pdf.click();
+                const elements = Array.from(document.querySelectorAll('a, button, span, li, div'));
+                const pdf = elements.find(el => {
+                  const text = el.textContent.trim();
+                  return text === 'PDF' || (text.includes('PDF') && text.length < 10);
+                });
+                if (pdf) {
+                  pdf.click();
+                  console.log('Clicked PDF');
+                }
               });
 
               // Wait for download
               console.log('Waiting for download to complete...');
-              await sleep(30000);
+              await sleep(45000);
+              await page.screenshot({ path: 'step12-final.png', fullPage: true });
 
               // Check if file was downloaded
               const files = fs.readdirSync(downloadPath);
@@ -242,13 +321,16 @@ jobs:
                   fs.copyFileSync(oldPath, newPath);
                   console.log('PDF saved as prime-report.pdf');
                 } else {
-                  console.log('No PDF file found, saving first file...');
+                  console.log('No PDF file found, checking for other files...');
                   const oldPath = path.join(downloadPath, files[0]);
                   const newPath = './prime-report.pdf';
                   fs.copyFileSync(oldPath, newPath);
+                  console.log('File saved as prime-report.pdf');
                 }
               } else {
                 console.error('No files were downloaded');
+                console.log('Saving final screenshot for debugging...');
+                await page.screenshot({ path: 'error-no-download.png', fullPage: true });
                 process.exit(1);
               }
 
@@ -256,7 +338,7 @@ jobs:
               console.error('Error:', error.message);
               // Take screenshot for debugging
               await page.screenshot({ path: 'error-screenshot.png', fullPage: true });
-              console.log('Screenshot saved as error-screenshot.png');
+              console.log('Error screenshot saved');
               throw error;
             } finally {
               await browser.close();
@@ -269,11 +351,19 @@ jobs:
           });
           EOF
 
+      - name: Upload debug screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-screenshots
+          path: '*.png'
+          retention-days: 7
+
       - name: Commit and push report
+        if: success()
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add prime-report.pdf || true
-          git add error-screenshot.png || true
           git diff --staged --quiet || git commit -m "Update Prime report [automated]"
           git push
