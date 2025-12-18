@@ -92,95 +92,88 @@ jobs:
               console.log('URL after login:', page.url());
               await page.screenshot({ path: 'step3-logged.png', fullPage: true });
 
-              // Debug: Log all links on the page
-              console.log('Step 4: Debugging - listing all links...');
-              const allLinks = await page.evaluate(() => {
+              // Step 4: Navigate to CONSULTA menu page
+              console.log('Step 4: Navigating to CONSULTA menu...');
+              await page.goto('https://sistema.primebeneficios.com.br/Admin/Novos/Menus/MenuConsultaInicial.aspx', {
+                waitUntil: 'networkidle2',
+                timeout: 60000
+              });
+              await sleep(3000);
+              console.log('URL after CONSULTA:', page.url());
+              await page.screenshot({ path: 'step4-consulta.png', fullPage: true });
+
+              // Debug: List all links on CONSULTA page
+              const consultaLinks = await page.evaluate(() => {
                 const links = document.querySelectorAll('a');
-                return Array.from(links).slice(0, 50).map(l => ({
+                return Array.from(links).map(l => ({
                   text: l.textContent.trim().substring(0, 50),
                   href: l.href
                 }));
               });
-              console.log('Links found:', JSON.stringify(allLinks, null, 2));
+              console.log('Links on CONSULTA page:', JSON.stringify(consultaLinks, null, 2));
 
-              // Step 4: Click CONSULTA - try multiple approaches
-              console.log('Step 4: Clicking CONSULTA...');
+              // Step 5: Find and click Estabelecimentos link
+              console.log('Step 5: Looking for Estabelecimentos...');
 
-              const consultaClicked = await page.evaluate(() => {
-                // Method 1: Find by text content
-                const allElements = document.querySelectorAll('a, span, div, li, button');
-                for (const el of allElements) {
-                  const text = el.textContent.trim();
-                  if (text === 'CONSULTA' || text === 'Consulta') {
-                    console.log('Found CONSULTA:', el.tagName);
-                    el.click();
-                    return { success: true, method: 'text', tag: el.tagName };
+              const estabLink = await page.evaluate(() => {
+                const links = document.querySelectorAll('a');
+                for (const link of links) {
+                  if (link.textContent.trim() === 'Estabelecimentos' ||
+                      link.href.toLowerCase().includes('estabelecimento')) {
+                    return link.href;
                   }
                 }
-
-                // Method 2: Find by href
-                const links = document.querySelectorAll('a[href*="Consulta"], a[href*="consulta"]');
-                if (links.length > 0) {
-                  links[0].click();
-                  return { success: true, method: 'href', count: links.length };
-                }
-
-                return { success: false };
+                return null;
               });
 
-              console.log('CONSULTA result:', JSON.stringify(consultaClicked));
-              await sleep(3000);
-              await page.screenshot({ path: 'step4-consulta.png', fullPage: true });
+              console.log('Estabelecimentos link:', estabLink);
 
-              // Step 5: Click Estabelecimentos
-              console.log('Step 5: Clicking Estabelecimentos...');
+              if (estabLink) {
+                await page.goto(estabLink, { waitUntil: 'networkidle2', timeout: 60000 });
+                await sleep(3000);
+              }
 
-              const estabClicked = await page.evaluate(() => {
-                const allElements = document.querySelectorAll('a, span, div, li');
-                for (const el of allElements) {
-                  const text = el.textContent.trim();
-                  if (text === 'Estabelecimentos') {
-                    el.click();
-                    return { success: true, tag: el.tagName };
-                  }
-                }
-
-                const links = document.querySelectorAll('a[href*="Estabelecimento"], a[href*="estabelecimento"]');
-                if (links.length > 0) {
-                  links[0].click();
-                  return { success: true, method: 'href' };
-                }
-
-                return { success: false };
-              });
-
-              console.log('Estabelecimentos result:', JSON.stringify(estabClicked));
-              await sleep(3000);
+              console.log('URL after Estabelecimentos:', page.url());
               await page.screenshot({ path: 'step5-estabelecimentos.png', fullPage: true });
 
-              // Step 6: Click Lista
-              console.log('Step 6: Clicking Lista...');
+              // Debug: List links again
+              const estabPageLinks = await page.evaluate(() => {
+                const links = document.querySelectorAll('a');
+                return Array.from(links).slice(0, 30).map(l => ({
+                  text: l.textContent.trim().substring(0, 50),
+                  href: l.href
+                }));
+              });
+              console.log('Links on Estabelecimentos page:', JSON.stringify(estabPageLinks, null, 2));
 
-              const listaClicked = await page.evaluate(() => {
-                const allElements = document.querySelectorAll('a, span, div, li');
-                for (const el of allElements) {
-                  if (el.textContent.trim() === 'Lista') {
-                    el.click();
-                    return { success: true };
+              // Step 6: Find and click Lista link
+              console.log('Step 6: Looking for Lista...');
+
+              const listaLink = await page.evaluate(() => {
+                const links = document.querySelectorAll('a');
+                for (const link of links) {
+                  if (link.textContent.trim() === 'Lista') {
+                    return link.href;
                   }
                 }
-                return { success: false };
+                return null;
               });
 
-              console.log('Lista result:', JSON.stringify(listaClicked));
-              await sleep(3000);
+              console.log('Lista link:', listaLink);
+
+              if (listaLink) {
+                await page.goto(listaLink, { waitUntil: 'networkidle2', timeout: 60000 });
+                await sleep(3000);
+              }
+
+              console.log('URL after Lista:', page.url());
               await page.screenshot({ path: 'step6-lista.png', fullPage: true });
 
               // Step 7: Expand Filtros
               console.log('Step 7: Expanding Filtros...');
               await page.evaluate(() => {
-                const allElements = document.querySelectorAll('*');
-                for (const el of allElements) {
+                const elements = document.querySelectorAll('*');
+                for (const el of elements) {
                   if (el.textContent.includes('Filtros') && el.textContent.length < 30) {
                     el.click();
                     break;
@@ -197,7 +190,8 @@ jobs:
                   index: i,
                   id: s.id,
                   name: s.name,
-                  options: Array.from(s.options).slice(0, 10).map(o => o.text)
+                  optionsCount: s.options.length,
+                  firstOptions: Array.from(s.options).slice(0, 5).map(o => o.text)
                 }));
               });
               console.log('Selects found:', JSON.stringify(allSelects, null, 2));
@@ -205,98 +199,105 @@ jobs:
               // Step 8: Select filters
               console.log('Step 8: Selecting filters...');
 
-              const filterResults = await page.evaluate(() => {
-                const results = {};
+              // Select UF = SP
+              const ufResult = await page.evaluate(() => {
                 const selects = document.querySelectorAll('select');
-
                 for (const sel of selects) {
-                  const options = Array.from(sel.options);
-
-                  // Try SP
-                  const spOpt = options.find(o => o.value === 'SP' || o.text === 'SP');
-                  if (spOpt && !results.uf) {
-                    sel.value = spOpt.value;
-                    sel.dispatchEvent(new Event('change', { bubbles: true }));
-                    results.uf = 'SP selected';
-                  }
-
-                  // Try GUARULHOS
-                  const gruOpt = options.find(o => o.text.toUpperCase().includes('GUARULHOS'));
-                  if (gruOpt && !results.cidade) {
-                    sel.value = gruOpt.value;
-                    sel.dispatchEvent(new Event('change', { bubbles: true }));
-                    results.cidade = 'GUARULHOS selected';
-                  }
-
-                  // Try POSTO
-                  const postoOpt = options.find(o => o.text.toUpperCase() === 'POSTO');
-                  if (postoOpt && !results.tipo) {
-                    sel.value = postoOpt.value;
-                    sel.dispatchEvent(new Event('change', { bubbles: true }));
-                    results.tipo = 'POSTO selected';
+                  for (const opt of sel.options) {
+                    if (opt.value === 'SP' || opt.text === 'SP') {
+                      sel.value = opt.value;
+                      sel.dispatchEvent(new Event('change', { bubbles: true }));
+                      return 'SP selected in ' + (sel.id || sel.name);
+                    }
                   }
                 }
-
-                return results;
+                return 'SP not found';
               });
-
-              console.log('Filter results:', JSON.stringify(filterResults));
+              console.log('UF:', ufResult);
               await sleep(3000);
+
+              // Select Cidade = GUARULHOS
+              const cidadeResult = await page.evaluate(() => {
+                const selects = document.querySelectorAll('select');
+                for (const sel of selects) {
+                  for (const opt of sel.options) {
+                    if (opt.text.toUpperCase().includes('GUARULHOS')) {
+                      sel.value = opt.value;
+                      sel.dispatchEvent(new Event('change', { bubbles: true }));
+                      return 'GUARULHOS selected';
+                    }
+                  }
+                }
+                return 'GUARULHOS not found';
+              });
+              console.log('Cidade:', cidadeResult);
+              await sleep(2000);
+
+              // Select Tipo = POSTO
+              const tipoResult = await page.evaluate(() => {
+                const selects = document.querySelectorAll('select');
+                for (const sel of selects) {
+                  for (const opt of sel.options) {
+                    if (opt.text.toUpperCase() === 'POSTO') {
+                      sel.value = opt.value;
+                      sel.dispatchEvent(new Event('change', { bubbles: true }));
+                      return 'POSTO selected';
+                    }
+                  }
+                }
+                return 'POSTO not found';
+              });
+              console.log('Tipo:', tipoResult);
+              await sleep(2000);
               await page.screenshot({ path: 'step8-filters.png', fullPage: true });
 
               // Step 9: Click Buscar
               console.log('Step 9: Clicking Buscar...');
-
-              const buscarClicked = await page.evaluate(() => {
-                const allElements = document.querySelectorAll('button, a, input[type="button"], input[type="submit"]');
-                for (const el of allElements) {
+              const buscarResult = await page.evaluate(() => {
+                const elements = document.querySelectorAll('button, a, input');
+                for (const el of elements) {
                   const text = el.textContent || el.value || '';
                   if (text.includes('Buscar')) {
                     el.click();
-                    return { success: true };
+                    return 'Buscar clicked';
                   }
                 }
-                return { success: false };
+                return 'Buscar not found';
               });
-
-              console.log('Buscar result:', JSON.stringify(buscarClicked));
+              console.log('Buscar:', buscarResult);
               await sleep(10000);
               await page.screenshot({ path: 'step9-buscar.png', fullPage: true });
 
               // Step 10: Click Ações
               console.log('Step 10: Opening Ações...');
-
-              const acoesClicked = await page.evaluate(() => {
-                const allElements = document.querySelectorAll('button, a, span, div');
-                for (const el of allElements) {
+              const acoesResult = await page.evaluate(() => {
+                const elements = document.querySelectorAll('button, a, span, div');
+                for (const el of elements) {
                   if (el.textContent.trim().startsWith('Ações')) {
                     el.click();
-                    return { success: true };
+                    return 'Ações clicked';
                   }
                 }
-                return { success: false };
+                return 'Ações not found';
               });
-
-              console.log('Ações result:', JSON.stringify(acoesClicked));
+              console.log('Ações:', acoesResult);
               await sleep(2000);
               await page.screenshot({ path: 'step10-acoes.png', fullPage: true });
 
               // Step 11: Click PDF
               console.log('Step 11: Clicking PDF...');
-
-              const pdfClicked = await page.evaluate(() => {
-                const allElements = document.querySelectorAll('a, button, li, span, div');
-                for (const el of allElements) {
+              const pdfResult = await page.evaluate(() => {
+                const elements = document.querySelectorAll('a, button, li, span');
+                for (const el of elements) {
                   const text = el.textContent.trim();
                   if (text === 'PDF' || (text.includes('PDF') && text.length < 10)) {
                     el.click();
-                    return { success: true };
+                    return 'PDF clicked';
                   }
                 }
-                return { success: false };
+                return 'PDF not found';
               });
-
-              console.log('PDF result:', JSON.stringify(pdfClicked));
+              console.log('PDF:', pdfResult);
               await sleep(60000);
               await page.screenshot({ path: 'step11-final.png', fullPage: true });
 
@@ -315,7 +316,6 @@ jobs:
 
             } catch (error) {
               console.error('Error:', error.message);
-              console.error('Stack:', error.stack);
               await page.screenshot({ path: 'error.png', fullPage: true });
               throw error;
             } finally {
