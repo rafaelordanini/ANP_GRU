@@ -107,67 +107,86 @@ jobs:
                 const links = document.querySelectorAll('a');
                 return Array.from(links).map(l => ({
                   text: l.textContent.trim().substring(0, 50),
-                  href: l.href
+                  href: l.href,
+                  id: l.id
                 }));
               });
               console.log('Links on CONSULTA page:', JSON.stringify(consultaLinks, null, 2));
 
-              // Step 5: Find and click Estabelecimentos link
-              console.log('Step 5: Looking for Estabelecimentos...');
+              // Step 5: Click Estabelecimentos in the navigation menu
+              console.log('Step 5: Clicking Estabelecimentos in navigation menu...');
 
-              const estabLink = await page.evaluate(() => {
+              // Click on Estabelecimentos link
+              const estabClicked = await page.evaluate(() => {
                 const links = document.querySelectorAll('a');
                 for (const link of links) {
-                  if (link.textContent.trim() === 'Estabelecimentos' ||
-                      link.href.toLowerCase().includes('estabelecimento')) {
-                    return link.href;
+                  const text = link.textContent.trim();
+                  if (text === 'Estabelecimentos') {
+                    console.log('Found Estabelecimentos link:', link.href);
+                    link.click();
+                    return { clicked: true, href: link.href, text: text };
                   }
                 }
-                return null;
+                return { clicked: false };
               });
+              console.log('Estabelecimentos click result:', JSON.stringify(estabClicked));
 
-              console.log('Estabelecimentos link:', estabLink);
-
-              if (estabLink) {
-                await page.goto(estabLink, { waitUntil: 'networkidle2', timeout: 60000 });
-                await sleep(3000);
-              }
-
-              console.log('URL after Estabelecimentos:', page.url());
+              await sleep(3000);
               await page.screenshot({ path: 'step5-estabelecimentos.png', fullPage: true });
 
-              // Debug: List links again
-              const estabPageLinks = await page.evaluate(() => {
-                const links = document.querySelectorAll('a');
-                return Array.from(links).slice(0, 30).map(l => ({
-                  text: l.textContent.trim().substring(0, 50),
-                  href: l.href
-                }));
-              });
-              console.log('Links on Estabelecimentos page:', JSON.stringify(estabPageLinks, null, 2));
+              // Check if page changed or if dropdown appeared
+              console.log('URL after Estabelecimentos click:', page.url());
 
-              // Step 6: Find and click Lista link
-              console.log('Step 6: Looking for Lista...');
+              // Look for Lista submenu - it may appear as dropdown or the page may have changed
+              const pageHTML = await page.evaluate(() => document.body.innerHTML.substring(0, 2000));
+              console.log('Page HTML snippet:', pageHTML);
 
-              const listaLink = await page.evaluate(() => {
+              // Step 6: Look for Lista in the page or submenu
+              console.log('Step 6: Looking for Lista submenu...');
+
+              // First, try to find Lista link on the page
+              const listaInfo = await page.evaluate(() => {
                 const links = document.querySelectorAll('a');
+                const results = [];
                 for (const link of links) {
-                  if (link.textContent.trim() === 'Lista') {
-                    return link.href;
+                  const text = link.textContent.trim();
+                  if (text.toLowerCase().includes('lista')) {
+                    results.push({ text: text, href: link.href });
                   }
                 }
-                return null;
+                return results;
               });
+              console.log('Lista links found:', JSON.stringify(listaInfo));
 
-              console.log('Lista link:', listaLink);
+              // Click Lista if found
+              const listaClicked = await page.evaluate(() => {
+                const links = document.querySelectorAll('a');
+                for (const link of links) {
+                  const text = link.textContent.trim();
+                  if (text === 'Lista') {
+                    link.click();
+                    return { clicked: true, href: link.href };
+                  }
+                }
+                return { clicked: false };
+              });
+              console.log('Lista click result:', JSON.stringify(listaClicked));
 
-              if (listaLink) {
-                await page.goto(listaLink, { waitUntil: 'networkidle2', timeout: 60000 });
-                await sleep(3000);
-              }
-
-              console.log('URL after Lista:', page.url());
+              await sleep(3000);
+              console.log('URL after Lista click:', page.url());
               await page.screenshot({ path: 'step6-lista.png', fullPage: true });
+
+              // Debug: List all selects to verify we're on the right page
+              const selectsAfterLista = await page.evaluate(() => {
+                const selects = document.querySelectorAll('select');
+                return Array.from(selects).map((s, i) => ({
+                  index: i,
+                  id: s.id,
+                  name: s.name,
+                  optionsCount: s.options.length
+                }));
+              });
+              console.log('Selects on current page:', JSON.stringify(selectsAfterLista));
 
               // Step 7: Expand Filtros
               console.log('Step 7: Expanding Filtros...');
