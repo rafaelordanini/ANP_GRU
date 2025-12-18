@@ -833,8 +833,6 @@
         </footer>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
     <!-- Password Modal -->
     <div class="modal-overlay" id="passwordModal">
         <div class="modal">
@@ -876,13 +874,7 @@
             }
         });
 
-        const EXCEL_URL = 'https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-revenda-e-de-distribuicao-combustiveis/shlp/semanal/semanal-municipio-2024-2025.xlsx';
-        const CORS_PROXIES = [
-            'https://api.allorigins.win/raw?url=',
-            'https://corsproxy.io/?',
-            'https://api.codetabs.com/v1/proxy?quest='
-        ];
-        const HEADER_ROW = 11;
+        const API_URL = '/api/fuel-prices';
         const UPDATE_PASSWORD = 'transportescmg';
 
         let isLoading = false;
@@ -973,7 +965,7 @@ GASOLINA R$ ${gasolinaFormatted}
 
             if (password === UPDATE_PASSWORD) {
                 closePasswordModal();
-                fetchFuelPrices();
+                fetchFuelPrices(true);
             } else {
                 input.classList.add('error');
                 input.value = '';
@@ -1043,23 +1035,32 @@ GASOLINA R$ ${gasolinaFormatted}
             document.getElementById('errorMessage').classList.remove('show');
         }
 
-        function updateUI(prices, periodStart, periodEnd) {
-            currentPrices.gasolinaComum = prices.gasolinaComum;
-            currentPrices.etanol = prices.etanol;
+        function formatDateFromISO(isoString) {
+            const date = new Date(isoString);
+            return date.toLocaleDateString('pt-BR', {
+                day: '2-digit', month: '2-digit', year: 'numeric'
+            });
+        }
+
+        function updateUI(data, periodStart, periodEnd) {
+            currentPrices.gasolinaComum = data.gasolinaComum;
+            currentPrices.etanol = data.etanol;
 
             document.getElementById('priceGasolina').innerHTML =
-                `<span class="currency">R$</span> ${formatPrice(prices.gasolinaComum)}`;
+                `<span class="currency">R$</span> ${formatPrice(data.gasolinaComum)}`;
             document.getElementById('priceEtanol').innerHTML =
-                `<span class="currency">R$</span> ${formatPrice(prices.etanol)}`;
+                `<span class="currency">R$</span> ${formatPrice(data.etanol)}`;
             document.getElementById('priceDiesel').innerHTML =
-                `<span class="currency">R$</span> ${formatPrice(prices.diesel)}`;
+                `<span class="currency">R$</span> ${formatPrice(data.diesel)}`;
             document.getElementById('priceGNV').innerHTML =
-                `<span class="currency">R$</span> ${formatPrice(prices.gnv)}`;
+                `<span class="currency">R$</span> ${formatPrice(data.gnv)}`;
 
             document.getElementById('lastUpdateTime').textContent = formatDateTime(new Date());
 
             // Update reference week (from ANP data)
-            const weekText = `${formatDate(periodStart)} a ${formatDate(periodEnd)}`;
+            const startFormatted = formatDateFromISO(periodStart);
+            const endFormatted = formatDateFromISO(periodEnd);
+            const weekText = `${startFormatted} a ${endFormatted}`;
             document.getElementById('referenceWeekText').textContent = weekText;
             document.getElementById('referenceWeek').style.display = 'flex';
             document.getElementById('dataPeriod').textContent = weekText;
@@ -1069,93 +1070,33 @@ GASOLINA R$ ${gasolinaFormatted}
             document.getElementById('whatsappBtn').disabled = false;
         }
 
-        function excelDateToJS(serial) {
-            if (serial instanceof Date) return serial;
-            if (typeof serial === 'string') return new Date(serial);
-            const utcDays = Math.floor(serial - 25569);
-            return new Date(utcDays * 86400 * 1000);
-        }
-
-        function processExcelData(data) {
-            const workbook = XLSX.read(data, { type: 'array', cellDates: true });
-            const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-            const jsonData = XLSX.utils.sheet_to_json(worksheet, { range: HEADER_ROW, defval: null });
-
-            const guarulhosData = jsonData.filter(row => {
-                const municipio = row['MUNICÍPIO'] || row['MUNICIPIO'];
-                return municipio && municipio.toString().toUpperCase() === 'GUARULHOS';
-            });
-
-            if (guarulhosData.length === 0) {
-                throw new Error('Nenhum dado encontrado para Guarulhos');
-            }
-
-            let maxDate = null;
-            guarulhosData.forEach(row => {
-                const dataFinal = excelDateToJS(row['DATA FINAL']);
-                if (!maxDate || dataFinal > maxDate) maxDate = dataFinal;
-            });
-
-            const latestData = guarulhosData.filter(row => {
-                return excelDateToJS(row['DATA FINAL']).getTime() === maxDate.getTime();
-            });
-
-            let minDate = null;
-            latestData.forEach(row => {
-                const dataInicial = excelDateToJS(row['DATA INICIAL']);
-                if (!minDate || dataInicial < minDate) minDate = dataInicial;
-            });
-
-            const prices = { gasolinaComum: null, etanol: null, diesel: null, gnv: null };
-
-            latestData.forEach(row => {
-                const produto = (row['PRODUTO'] || '').toString().toUpperCase();
-                const preco = row['PREÇO MÉDIO REVENDA'];
-
-                if (produto.includes('GASOLINA COMUM')) {
-                    prices.gasolinaComum = preco !== null && !isNaN(preco) ? parseFloat(preco) : null;
-                } else if (produto.includes('ETANOL')) {
-                    prices.etanol = preco !== null && !isNaN(preco) ? parseFloat(preco) : null;
-                } else if (produto.includes('DIESEL') && !produto.includes('S10')) {
-                    prices.diesel = preco !== null && !isNaN(preco) ? parseFloat(preco) : null;
-                } else if (produto.includes('GNV')) {
-                    prices.gnv = preco !== null && !isNaN(preco) ? parseFloat(preco) : null;
-                }
-            });
-
-            return { prices, periodStart: minDate, periodEnd: maxDate };
-        }
-
-        async function fetchFuelPrices() {
+        async function fetchFuelPrices(forceRefresh = false) {
             if (isLoading) return;
 
             setLoading(true);
             hideError();
 
-            let lastError = null;
+            try {
+                const url = forceRefresh ? `${API_URL}?refresh=true` : API_URL;
+                const response = await fetch(url);
 
-            // Try each CORS proxy until one works
-            for (const proxy of CORS_PROXIES) {
-                try {
-                    const response = await fetch(proxy + encodeURIComponent(EXCEL_URL));
-                    if (!response.ok) throw new Error('Erro ao baixar arquivo: ' + response.status);
-
-                    const arrayBuffer = await response.arrayBuffer();
-                    const result = processExcelData(new Uint8Array(arrayBuffer));
-                    updateUI(result.prices, result.periodStart, result.periodEnd);
-                    setLoading(false);
-                    return; // Success, exit the function
-                } catch (error) {
-                    console.warn('Proxy failed:', proxy, error.message);
-                    lastError = error;
-                    // Continue to next proxy
+                if (!response.ok) {
+                    throw new Error('Erro ao buscar dados: ' + response.status);
                 }
-            }
 
-            // All proxies failed
-            console.error('All proxies failed:', lastError);
-            showError('Erro ao buscar dados: ' + (lastError ? lastError.message : 'Todos os servidores falharam'));
-            setLoading(false);
+                const result = await response.json();
+
+                if (!result.success) {
+                    throw new Error(result.error || 'Erro desconhecido');
+                }
+
+                updateUI(result.data, result.periodStart, result.periodEnd);
+            } catch (error) {
+                console.error('Error fetching fuel prices:', error);
+                showError('Erro ao buscar dados: ' + error.message);
+            } finally {
+                setLoading(false);
+            }
         }
 
         function checkAutoUpdate() {
