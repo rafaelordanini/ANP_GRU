@@ -46,6 +46,18 @@ jobs:
             return new Promise(resolve => setTimeout(resolve, ms));
           }
 
+          // Click element using XPath
+          async function clickXPath(page, xpath) {
+            const elements = await page.$x(xpath);
+            if (elements.length > 0) {
+              await elements[0].click();
+              console.log('Clicked XPath:', xpath);
+              return true;
+            }
+            console.log('XPath not found:', xpath);
+            return false;
+          }
+
           async function main() {
             console.log('Starting browser...');
             const browser = await puppeteer.launch({
@@ -93,98 +105,94 @@ jobs:
               console.log('URL after login:', page.url());
               await page.screenshot({ path: 'step3-logged.png', fullPage: true });
 
-              // Step 4: Navigate directly to Estabelecimentos page
-              console.log('Step 4: Navigating to Estabelecimentos...');
+              // Step 4: Click CONSULTA menu (using XPath for exact text match)
+              console.log('Step 4: Clicking CONSULTA menu...');
 
-              // Try different possible URLs for the Estabelecimentos page
-              const possibleUrls = [
-                'https://sistema.primebeneficios.com.br/Admin/Consulta/Estabelecimentos/Lista.aspx',
-                'https://sistema.primebeneficios.com.br/Admin/Consulta/Estabelecimentos.aspx',
-                'https://sistema.primebeneficios.com.br/Admin/Estabelecimentos.aspx'
-              ];
+              // Try multiple methods to click CONSULTA
+              let consultaClicked = await clickXPath(page, "//a[normalize-space(text())='CONSULTA']");
 
-              let navigated = false;
-              for (const url of possibleUrls) {
-                try {
-                  console.log('Trying URL:', url);
-                  await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
-                  await sleep(2000);
-
-                  // Check if we're on the right page (has Filtros or UF dropdown)
-                  const hasFilters = await page.evaluate(() => {
-                    return document.body.innerHTML.includes('Filtros') ||
-                           document.body.innerHTML.includes('UF') ||
-                           document.querySelector('select') !== null;
-                  });
-
-                  if (hasFilters) {
-                    console.log('Found Estabelecimentos page at:', url);
-                    navigated = true;
-                    break;
-                  }
-                } catch (e) {
-                  console.log('URL failed:', url, e.message);
-                }
+              if (!consultaClicked) {
+                consultaClicked = await clickXPath(page, "//span[normalize-space(text())='CONSULTA']");
               }
 
-              await page.screenshot({ path: 'step4-estabelecimentos.png', fullPage: true });
-
-              // Step 5: Try clicking menu if direct URL didn't work
-              if (!navigated) {
-                console.log('Step 5: Trying menu navigation...');
-
-                // Click CONSULTA
-                await page.evaluate(() => {
-                  const menuItems = document.querySelectorAll('a, li, span');
-                  for (const item of menuItems) {
-                    if (item.textContent.trim().toUpperCase() === 'CONSULTA') {
-                      item.click();
-                      break;
-                    }
-                  }
-                });
-                await sleep(2000);
-
-                // Click Estabelecimentos
-                await page.evaluate(() => {
-                  const menuItems = document.querySelectorAll('a, li, span');
-                  for (const item of menuItems) {
-                    if (item.textContent.trim() === 'Estabelecimentos') {
-                      item.click();
-                      break;
-                    }
-                  }
-                });
-                await sleep(2000);
-
-                // Click Lista
-                await page.evaluate(() => {
-                  const menuItems = document.querySelectorAll('a, li, span');
-                  for (const item of menuItems) {
-                    if (item.textContent.trim() === 'Lista') {
-                      item.click();
-                      break;
-                    }
-                  }
-                });
-                await sleep(3000);
+              if (!consultaClicked) {
+                consultaClicked = await clickXPath(page, "//*[contains(@class, 'menu')]//*[contains(text(), 'CONSULTA')]");
               }
 
-              await page.screenshot({ path: 'step5-navigation.png', fullPage: true });
+              if (!consultaClicked) {
+                // Try using page.evaluate with href
+                consultaClicked = await page.evaluate(() => {
+                  const links = document.querySelectorAll('a');
+                  for (const link of links) {
+                    if (link.textContent.trim().toUpperCase() === 'CONSULTA' ||
+                        link.href.toLowerCase().includes('consulta')) {
+                      link.click();
+                      return true;
+                    }
+                  }
+                  return false;
+                });
+              }
 
-              // Step 6: Expand Filtros if needed
-              console.log('Step 6: Expanding Filtros...');
-              await page.evaluate(() => {
-                const filtros = Array.from(document.querySelectorAll('*')).find(el =>
-                  el.textContent.includes('Filtros') && el.textContent.length < 50
-                );
-                if (filtros) filtros.click();
-              });
+              console.log('CONSULTA clicked:', consultaClicked);
+              await sleep(3000);
+              await page.screenshot({ path: 'step4-consulta.png', fullPage: true });
+
+              // Step 5: Click Estabelecimentos
+              console.log('Step 5: Clicking Estabelecimentos...');
+
+              let estabClicked = await clickXPath(page, "//a[normalize-space(text())='Estabelecimentos']");
+
+              if (!estabClicked) {
+                estabClicked = await page.evaluate(() => {
+                  const links = document.querySelectorAll('a');
+                  for (const link of links) {
+                    if (link.textContent.trim() === 'Estabelecimentos' ||
+                        link.href.toLowerCase().includes('estabelecimento')) {
+                      link.click();
+                      return true;
+                    }
+                  }
+                  return false;
+                });
+              }
+
+              console.log('Estabelecimentos clicked:', estabClicked);
+              await sleep(3000);
+              await page.screenshot({ path: 'step5-estabelecimentos.png', fullPage: true });
+
+              // Step 6: Click Lista tab
+              console.log('Step 6: Clicking Lista...');
+
+              let listaClicked = await clickXPath(page, "//a[normalize-space(text())='Lista']");
+
+              if (!listaClicked) {
+                listaClicked = await page.evaluate(() => {
+                  const links = document.querySelectorAll('a');
+                  for (const link of links) {
+                    if (link.textContent.trim() === 'Lista') {
+                      link.click();
+                      return true;
+                    }
+                  }
+                  return false;
+                });
+              }
+
+              console.log('Lista clicked:', listaClicked);
+              await sleep(3000);
+              await page.screenshot({ path: 'step6-lista.png', fullPage: true });
+
+              // Step 7: Expand Filtros
+              console.log('Step 7: Expanding Filtros...');
+              await clickXPath(page, "//*[contains(text(), 'Filtros')]");
               await sleep(2000);
-              await page.screenshot({ path: 'step6-filtros.png', fullPage: true });
+              await page.screenshot({ path: 'step7-filtros.png', fullPage: true });
 
-              // Step 7: Select UF = SP
-              console.log('Step 7: Selecting UF = SP...');
+              // Step 8: Select filters
+              console.log('Step 8: Selecting filters...');
+
+              // Select UF = SP
               const ufSelected = await page.evaluate(() => {
                 const selects = document.querySelectorAll('select');
                 for (const sel of selects) {
@@ -192,17 +200,16 @@ jobs:
                     if (opt.value === 'SP' || opt.text === 'SP') {
                       sel.value = opt.value;
                       sel.dispatchEvent(new Event('change', { bubbles: true }));
-                      return true;
+                      return 'SP selected';
                     }
                   }
                 }
-                return false;
+                return 'SP not found';
               });
-              console.log('UF selected:', ufSelected);
+              console.log('UF:', ufSelected);
               await sleep(3000);
 
-              // Step 8: Select Cidade = GUARULHOS
-              console.log('Step 8: Selecting Cidade = GUARULHOS...');
+              // Select Cidade = GUARULHOS
               const cidadeSelected = await page.evaluate(() => {
                 const selects = document.querySelectorAll('select');
                 for (const sel of selects) {
@@ -210,17 +217,16 @@ jobs:
                     if (opt.text.toUpperCase().includes('GUARULHOS')) {
                       sel.value = opt.value;
                       sel.dispatchEvent(new Event('change', { bubbles: true }));
-                      return true;
+                      return 'GUARULHOS selected';
                     }
                   }
                 }
-                return false;
+                return 'GUARULHOS not found';
               });
-              console.log('Cidade selected:', cidadeSelected);
+              console.log('Cidade:', cidadeSelected);
               await sleep(2000);
 
-              // Step 9: Select Tipo = POSTO
-              console.log('Step 9: Selecting Tipo = POSTO...');
+              // Select Tipo = POSTO
               const tipoSelected = await page.evaluate(() => {
                 const selects = document.querySelectorAll('select');
                 for (const sel of selects) {
@@ -228,63 +234,60 @@ jobs:
                     if (opt.text.toUpperCase() === 'POSTO') {
                       sel.value = opt.value;
                       sel.dispatchEvent(new Event('change', { bubbles: true }));
-                      return true;
+                      return 'POSTO selected';
                     }
                   }
                 }
-                return false;
+                return 'POSTO not found';
               });
-              console.log('Tipo selected:', tipoSelected);
+              console.log('Tipo:', tipoSelected);
               await sleep(2000);
-              await page.screenshot({ path: 'step9-filters.png', fullPage: true });
+              await page.screenshot({ path: 'step8-filters.png', fullPage: true });
 
-              // Step 10: Click Buscar
-              console.log('Step 10: Clicking Buscar...');
-              await page.evaluate(() => {
-                const btns = document.querySelectorAll('button, input, a');
-                for (const btn of btns) {
-                  const text = (btn.textContent || btn.value || '').trim();
-                  if (text.includes('Buscar')) {
-                    btn.click();
-                    return true;
-                  }
-                }
-                return false;
-              });
+              // Step 9: Click Buscar
+              console.log('Step 9: Clicking Buscar...');
+
+              let buscarClicked = await clickXPath(page, "//button[contains(text(), 'Buscar')]");
+              if (!buscarClicked) {
+                buscarClicked = await clickXPath(page, "//a[contains(text(), 'Buscar')]");
+              }
+              if (!buscarClicked) {
+                buscarClicked = await clickXPath(page, "//input[@value='Buscar']");
+              }
+
+              console.log('Buscar clicked:', buscarClicked);
               await sleep(10000);
-              await page.screenshot({ path: 'step10-buscar.png', fullPage: true });
+              await page.screenshot({ path: 'step9-buscar.png', fullPage: true });
 
-              // Step 11: Click Ações
-              console.log('Step 11: Opening Ações...');
-              await page.evaluate(() => {
-                const elements = document.querySelectorAll('button, a, span, div');
-                for (const el of elements) {
-                  if (el.textContent.trim() === 'Ações' || el.textContent.trim().startsWith('Ações')) {
-                    el.click();
-                    return true;
-                  }
-                }
-                return false;
-              });
+              // Step 10: Click Ações dropdown
+              console.log('Step 10: Opening Ações...');
+
+              let acoesClicked = await clickXPath(page, "//button[contains(text(), 'Ações')]");
+              if (!acoesClicked) {
+                acoesClicked = await clickXPath(page, "//a[contains(text(), 'Ações')]");
+              }
+              if (!acoesClicked) {
+                acoesClicked = await clickXPath(page, "//*[contains(text(), 'Ações')]");
+              }
+
+              console.log('Ações clicked:', acoesClicked);
               await sleep(2000);
-              await page.screenshot({ path: 'step11-acoes.png', fullPage: true });
+              await page.screenshot({ path: 'step10-acoes.png', fullPage: true });
 
-              // Step 12: Click PDF
-              console.log('Step 12: Clicking PDF...');
-              await page.evaluate(() => {
-                const elements = document.querySelectorAll('a, button, li, span');
-                for (const el of elements) {
-                  if (el.textContent.trim() === 'PDF') {
-                    el.click();
-                    return true;
-                  }
-                }
-                return false;
-              });
+              // Step 11: Click PDF
+              console.log('Step 11: Clicking PDF...');
 
-              console.log('Waiting for download...');
+              let pdfClicked = await clickXPath(page, "//a[normalize-space(text())='PDF']");
+              if (!pdfClicked) {
+                pdfClicked = await clickXPath(page, "//li[contains(text(), 'PDF')]");
+              }
+              if (!pdfClicked) {
+                pdfClicked = await clickXPath(page, "//*[contains(text(), 'PDF')]");
+              }
+
+              console.log('PDF clicked:', pdfClicked);
               await sleep(60000);
-              await page.screenshot({ path: 'step12-final.png', fullPage: true });
+              await page.screenshot({ path: 'step11-final.png', fullPage: true });
 
               // Check downloads
               const files = fs.readdirSync(downloadPath);
