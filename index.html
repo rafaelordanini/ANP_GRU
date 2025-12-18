@@ -631,7 +631,7 @@
         </div>
 
         <div class="update-section">
-            <button class="update-btn" id="updateBtn" onclick="fetchFuelPrices(true)">
+            <button class="update-btn" id="updateBtn" onclick="fetchFuelPrices()">
                 <i class="fas fa-sync-alt"></i>
                 Atualizar Preços
             </button>
@@ -693,7 +693,7 @@
             }
         });
 
-        const API_URL = '/api/fuel-prices';
+        const PRICES_URL = '/prices.json';
 
         let isLoading = false;
         let lastCheckHour = -1;
@@ -836,14 +836,15 @@ GASOLINA R$ ${gasolinaFormatted}
             document.getElementById('whatsappBtn').disabled = false;
         }
 
-        async function fetchFuelPrices(forceRefresh = false) {
+        async function fetchFuelPrices() {
             if (isLoading) return;
 
             setLoading(true);
             hideError();
 
             try {
-                const url = forceRefresh ? `${API_URL}?refresh=true` : API_URL;
+                // Add cache-busting parameter to ensure fresh data
+                const url = `${PRICES_URL}?t=${Date.now()}`;
                 const response = await fetch(url);
 
                 if (!response.ok) {
@@ -852,8 +853,8 @@ GASOLINA R$ ${gasolinaFormatted}
 
                 const result = await response.json();
 
-                if (!result.success) {
-                    throw new Error(result.error || 'Erro desconhecido');
+                if (!result.success || !result.data.gasolinaComum) {
+                    throw new Error('Dados ainda não disponíveis. Aguarde a atualização automática.');
                 }
 
                 updateUI(result.data, result.periodStart, result.periodEnd);

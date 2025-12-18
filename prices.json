@@ -1,0 +1,13 @@
+{
+  "success": true,
+  "data": {
+    "gasolinaComum": null,
+    "etanol": null,
+    "diesel": null,
+    "gnv": null
+  },
+  "periodStart": null,
+  "periodEnd": null,
+  "sourceUrl": null,
+  "updatedAt": null
+}
