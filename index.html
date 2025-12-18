@@ -512,6 +512,64 @@
             color: white;
         }
 
+        /* Prime Report Section */
+        .prime-section {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            margin-top: 20px;
+            animation: fadeInUp 0.6s ease-out 0.72s both;
+        }
+
+        .prime-section .info-title {
+            color: #dc2626;
+        }
+
+        .prime-section .info-title i {
+            color: #dc2626;
+        }
+
+        .prime-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 28px;
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
+            color: white;
+            border: none;
+            border-radius: 14px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 14px rgba(220, 38, 38, 0.4);
+            margin-top: 16px;
+            text-decoration: none;
+        }
+
+        .prime-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(220, 38, 38, 0.5);
+            color: white;
+            text-decoration: none;
+        }
+
+        .prime-update-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 16px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .prime-update-info i {
+            color: var(--text-muted);
+        }
+
         footer {
             text-align: center;
             margin-top: 30px;
@@ -654,6 +712,25 @@
                     <i class="fas fa-download"></i>
                     Baixar Planilha da ANP
                 </a>
+            </div>
+        </div>
+
+        <!-- Prime Report Section -->
+        <div class="prime-section">
+            <div class="info-title">
+                <i class="fas fa-file-pdf"></i>
+                Postos Credenciados - Prime Benefícios
+            </div>
+            <div class="info-text">
+                Relatório atualizado automaticamente toda <strong>segunda-feira às 07:00</strong> com a lista de postos credenciados em Guarulhos.
+            </div>
+            <a href="/prime-report.pdf" target="_blank" class="prime-btn" id="primeBtn">
+                <i class="fas fa-file-pdf"></i>
+                Ver Relatório de Postos (PDF)
+            </a>
+            <div class="prime-update-info" id="primeUpdateInfo">
+                <i class="far fa-clock"></i>
+                <span id="primeUpdateText">Atualizado toda segunda-feira</span>
             </div>
         </div>
 
