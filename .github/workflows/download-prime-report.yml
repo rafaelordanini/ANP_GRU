@@ -102,29 +102,80 @@ jobs:
               console.log('URL after CONSULTA:', page.url());
               await page.screenshot({ path: 'step4-consulta.png', fullPage: true });
 
-              // Debug: List all links on CONSULTA page
-              const consultaLinks = await page.evaluate(() => {
-                const links = document.querySelectorAll('a');
-                return Array.from(links).map(l => ({
-                  text: l.textContent.trim().substring(0, 50),
-                  href: l.href,
-                  id: l.id
+              // Debug: Check for iframes
+              const iframes = await page.evaluate(() => {
+                return Array.from(document.querySelectorAll('iframe')).map(f => ({
+                  id: f.id,
+                  name: f.name,
+                  src: f.src
                 }));
               });
-              console.log('Links on CONSULTA page:', JSON.stringify(consultaLinks, null, 2));
+              console.log('Iframes on page:', JSON.stringify(iframes));
 
-              // Step 5: Click Estabelecimentos in the navigation menu
-              console.log('Step 5: Clicking Estabelecimentos in navigation menu...');
+              // Debug: List ALL elements containing "Estabelecimentos"
+              const allElements = await page.evaluate(() => {
+                const results = [];
+                const walker = document.createTreeWalker(
+                  document.body,
+                  NodeFilter.SHOW_ELEMENT,
+                  null,
+                  false
+                );
+                let node;
+                while (node = walker.nextNode()) {
+                  const text = node.textContent.trim();
+                  if (text === 'Estabelecimentos' ||
+                      (text.includes('Estabelecimentos') && text.length < 50)) {
+                    results.push({
+                      tag: node.tagName,
+                      id: node.id,
+                      className: node.className,
+                      text: text.substring(0, 50),
+                      href: node.href || null,
+                      onclick: node.onclick ? 'has onclick' : null
+                    });
+                  }
+                }
+                return results;
+              });
+              console.log('Elements with Estabelecimentos:', JSON.stringify(allElements, null, 2));
 
-              // Click on Estabelecimentos link
+              // Debug: Get page structure
+              const pageStructure = await page.evaluate(() => {
+                const body = document.body;
+                const structure = {
+                  childCount: body.children.length,
+                  firstChildren: Array.from(body.children).slice(0, 5).map(c => ({
+                    tag: c.tagName,
+                    id: c.id,
+                    className: c.className?.substring(0, 50)
+                  }))
+                };
+                return structure;
+              });
+              console.log('Page structure:', JSON.stringify(pageStructure, null, 2));
+
+              // Step 5: Click Estabelecimentos - try multiple approaches
+              console.log('Step 5: Clicking Estabelecimentos...');
+
+              // Approach 1: Find any element with exact text "Estabelecimentos"
               const estabClicked = await page.evaluate(() => {
-                const links = document.querySelectorAll('a');
-                for (const link of links) {
-                  const text = link.textContent.trim();
-                  if (text === 'Estabelecimentos') {
-                    console.log('Found Estabelecimentos link:', link.href);
-                    link.click();
-                    return { clicked: true, href: link.href, text: text };
+                const allElements = document.querySelectorAll('*');
+                for (const el of allElements) {
+                  // Check direct text content (not including children)
+                  const directText = Array.from(el.childNodes)
+                    .filter(n => n.nodeType === Node.TEXT_NODE)
+                    .map(n => n.textContent.trim())
+                    .join('');
+
+                  if (directText === 'Estabelecimentos' || el.textContent.trim() === 'Estabelecimentos') {
+                    el.click();
+                    return {
+                      clicked: true,
+                      tag: el.tagName,
+                      id: el.id,
+                      className: el.className
+                    };
                   }
                 }
                 return { clicked: false };
@@ -133,39 +184,37 @@ jobs:
 
               await sleep(3000);
               await page.screenshot({ path: 'step5-estabelecimentos.png', fullPage: true });
-
-              // Check if page changed or if dropdown appeared
               console.log('URL after Estabelecimentos click:', page.url());
 
-              // Look for Lista submenu - it may appear as dropdown or the page may have changed
-              const pageHTML = await page.evaluate(() => document.body.innerHTML.substring(0, 2000));
-              console.log('Page HTML snippet:', pageHTML);
-
-              // Step 6: Look for Lista in the page or submenu
-              console.log('Step 6: Looking for Lista submenu...');
-
-              // First, try to find Lista link on the page
-              const listaInfo = await page.evaluate(() => {
-                const links = document.querySelectorAll('a');
+              // Debug: Check what changed
+              const afterEstabElements = await page.evaluate(() => {
                 const results = [];
-                for (const link of links) {
-                  const text = link.textContent.trim();
-                  if (text.toLowerCase().includes('lista')) {
-                    results.push({ text: text, href: link.href });
+                const allElements = document.querySelectorAll('*');
+                for (const el of allElements) {
+                  const text = el.textContent.trim();
+                  if (text === 'Lista' || (text.includes('Lista') && text.length < 20)) {
+                    results.push({
+                      tag: el.tagName,
+                      id: el.id,
+                      className: el.className,
+                      text: text,
+                      visible: el.offsetParent !== null
+                    });
                   }
                 }
                 return results;
               });
-              console.log('Lista links found:', JSON.stringify(listaInfo));
+              console.log('Elements with Lista after click:', JSON.stringify(afterEstabElements, null, 2));
 
-              // Click Lista if found
+              // Step 6: Click Lista
+              console.log('Step 6: Looking for Lista submenu...');
+
               const listaClicked = await page.evaluate(() => {
-                const links = document.querySelectorAll('a');
-                for (const link of links) {
-                  const text = link.textContent.trim();
-                  if (text === 'Lista') {
-                    link.click();
-                    return { clicked: true, href: link.href };
+                const allElements = document.querySelectorAll('*');
+                for (const el of allElements) {
+                  if (el.textContent.trim() === 'Lista' && el.offsetParent !== null) {
+                    el.click();
+                    return { clicked: true, tag: el.tagName, id: el.id };
                   }
                 }
                 return { clicked: false };
