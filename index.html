@@ -433,160 +433,6 @@
             color: var(--accent);
         }
 
-        /* Modal Styles */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(4px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s ease;
-        }
-
-        .modal-overlay.show {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        .modal {
-            background: var(--bg-card);
-            border-radius: 20px;
-            padding: 28px;
-            max-width: 400px;
-            width: 90%;
-            box-shadow: var(--shadow-lg);
-            border: 1px solid var(--border);
-            transform: scale(0.9) translateY(20px);
-            transition: all 0.3s ease;
-        }
-
-        .modal-overlay.show .modal {
-            transform: scale(1) translateY(0);
-        }
-
-        .modal-icon {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 16px;
-            font-size: 1.5rem;
-        }
-
-        .modal-icon.password {
-            background: var(--accent-light);
-            color: var(--accent);
-        }
-
-        .modal-icon.error {
-            background: rgba(239, 68, 68, 0.15);
-            color: var(--danger);
-        }
-
-        .modal-icon.success {
-            background: rgba(16, 185, 129, 0.15);
-            color: var(--success);
-        }
-
-        .modal-title {
-            font-size: 1.2rem;
-            font-weight: 700;
-            text-align: center;
-            margin-bottom: 8px;
-            color: var(--text-primary);
-        }
-
-        .modal-text {
-            text-align: center;
-            color: var(--text-secondary);
-            font-size: 0.95rem;
-            margin-bottom: 20px;
-            line-height: 1.6;
-        }
-
-        .modal-input {
-            width: 100%;
-            padding: 14px 16px;
-            border: 2px solid var(--border);
-            border-radius: 12px;
-            font-family: 'DM Sans', sans-serif;
-            font-size: 1rem;
-            background: var(--bg-secondary);
-            color: var(--text-primary);
-            transition: all 0.2s ease;
-            margin-bottom: 16px;
-        }
-
-        .modal-input:focus {
-            outline: none;
-            border-color: var(--accent);
-            box-shadow: 0 0 0 3px var(--accent-light);
-        }
-
-        .modal-input.error {
-            border-color: var(--danger);
-            animation: shake 0.5s ease;
-        }
-
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            20%, 60% { transform: translateX(-8px); }
-            40%, 80% { transform: translateX(8px); }
-        }
-
-        .modal-buttons {
-            display: flex;
-            gap: 12px;
-        }
-
-        .modal-btn {
-            flex: 1;
-            padding: 12px 20px;
-            border: none;
-            border-radius: 12px;
-            font-family: 'DM Sans', sans-serif;
-            font-size: 0.95rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .modal-btn.cancel {
-            background: var(--bg-secondary);
-            color: var(--text-secondary);
-            border: 1px solid var(--border);
-        }
-
-        .modal-btn.cancel:hover {
-            background: var(--border);
-        }
-
-        .modal-btn.confirm {
-            background: linear-gradient(135deg, var(--accent), var(--accent-dark));
-            color: white;
-            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
-        }
-
-        .modal-btn.confirm:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 6px 16px rgba(14, 165, 233, 0.4);
-        }
-
-        .modal-btn.single {
-            flex: none;
-            width: 100%;
-        }
-
         /* WhatsApp Section */
         .whatsapp-section {
             background: var(--bg-card);
@@ -785,7 +631,7 @@
         </div>
 
         <div class="update-section">
-            <button class="update-btn" id="updateBtn" onclick="showPasswordModal()">
+            <button class="update-btn" id="updateBtn" onclick="fetchFuelPrices(true)">
                 <i class="fas fa-sync-alt"></i>
                 Atualizar Preços
             </button>
@@ -833,33 +679,6 @@
         </footer>
     </div>
 
-    <!-- Password Modal -->
-    <div class="modal-overlay" id="passwordModal">
-        <div class="modal">
-            <div class="modal-icon password">
-                <i class="fas fa-lock"></i>
-            </div>
-            <h3 class="modal-title">Autenticação Necessária</h3>
-            <p class="modal-text">Digite a senha para atualizar os dados manualmente.</p>
-            <input type="password" class="modal-input" id="passwordInput" placeholder="Digite a senha..." autocomplete="off">
-            <div class="modal-buttons">
-                <button class="modal-btn cancel" onclick="closePasswordModal()">Cancelar</button>
-                <button class="modal-btn confirm" onclick="validatePassword()">Confirmar</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Error Modal -->
-    <div class="modal-overlay" id="errorModal">
-        <div class="modal">
-            <div class="modal-icon error">
-                <i class="fas fa-times"></i>
-            </div>
-            <h3 class="modal-title">Senha Incorreta</h3>
-            <p class="modal-text">A senha digitada está incorreta.<br><br>Os dados são atualizados automaticamente todos os dias às <strong>07:00 da manhã</strong>.</p>
-            <button class="modal-btn confirm single" onclick="closeErrorModal()">Entendi</button>
-        </div>
-    </div>
 
     <script>
         // Dark mode detection
@@ -875,7 +694,6 @@
         });
 
         const API_URL = '/api/fuel-prices';
-        const UPDATE_PASSWORD = 'transportescmg';
 
         let isLoading = false;
         let lastCheckHour = -1;
@@ -936,58 +754,6 @@ GASOLINA R$ ${gasolinaFormatted}
             setTimeout(() => errorDiv.classList.remove('show'), 5000);
         }
 
-        // Modal Functions
-        function showPasswordModal() {
-            if (isLoading) return;
-            const modal = document.getElementById('passwordModal');
-            const input = document.getElementById('passwordInput');
-            input.value = '';
-            input.classList.remove('error');
-            modal.classList.add('show');
-            setTimeout(() => input.focus(), 100);
-        }
-
-        function closePasswordModal() {
-            document.getElementById('passwordModal').classList.remove('show');
-        }
-
-        function showErrorModal() {
-            document.getElementById('errorModal').classList.add('show');
-        }
-
-        function closeErrorModal() {
-            document.getElementById('errorModal').classList.remove('show');
-        }
-
-        function validatePassword() {
-            const input = document.getElementById('passwordInput');
-            const password = input.value;
-
-            if (password === UPDATE_PASSWORD) {
-                closePasswordModal();
-                fetchFuelPrices(true);
-            } else {
-                input.classList.add('error');
-                input.value = '';
-                setTimeout(() => {
-                    closePasswordModal();
-                    showErrorModal();
-                }, 500);
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            const passwordInput = document.getElementById('passwordInput');
-            passwordInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') validatePassword();
-            });
-            document.getElementById('passwordModal').addEventListener('click', function(e) {
-                if (e.target === this) closePasswordModal();
-            });
-            document.getElementById('errorModal').addEventListener('click', function(e) {
-                if (e.target === this) closeErrorModal();
-            });
-        });
 
         function formatPrice(value) {
             if (value === null || value === undefined || isNaN(value)) return '--';
