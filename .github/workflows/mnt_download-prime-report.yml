@@ -1,0 +1,328 @@
+name: Download Prime Report
+
+on:
+  schedule:
+    - cron: '0 10 * * 1'
+  workflow_dispatch:
+
+jobs:
+  download-report:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Puppeteer
+        run: npm install puppeteer
+
+      - name: Download Prime Report
+        env:
+          PRIME_EMPRESA: ${{ secrets.PRIME_EMPRESA }}
+          PRIME_USUARIO: ${{ secrets.PRIME_USUARIO }}
+          PRIME_SENHA: ${{ secrets.PRIME_SENHA }}
+        run: |
+          node << 'EOF'
+          const puppeteer = require('puppeteer');
+          const fs = require('fs');
+          const path = require('path');
+
+          const PRIME_EMPRESA = process.env.PRIME_EMPRESA;
+          const PRIME_USUARIO = process.env.PRIME_USUARIO;
+          const PRIME_SENHA = process.env.PRIME_SENHA;
+
+          if (!PRIME_EMPRESA || !PRIME_USUARIO || !PRIME_SENHA) {
+            console.error('Missing credentials.');
+            process.exit(1);
+          }
+
+          async function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+          }
+
+          async function main() {
+            console.log('Starting browser...');
+            const browser = await puppeteer.launch({
+              headless: 'new',
+              args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+            });
+
+            const page = await browser.newPage();
+            await page.setViewport({ width: 1920, height: 1080 });
+
+            const downloadPath = path.resolve('./downloads');
+            fs.mkdirSync(downloadPath, { recursive: true });
+
+            const client = await page.createCDPSession();
+            await client.send('Page.setDownloadBehavior', {
+              behavior: 'allow',
+              downloadPath: downloadPath
+            });
+
+            try {
+              // Step 1: Login
+              console.log('Step 1: Navigating to login page...');
+              await page.goto('https://primebeneficios.com.br/Intranet/Frota', {
+                waitUntil: 'networkidle2',
+                timeout: 60000
+              });
+              await sleep(2000);
+              await page.screenshot({ path: 'step1-login.png', fullPage: true });
+
+              // Step 2: Fill form
+              console.log('Step 2: Filling login form...');
+              await page.waitForSelector('#cliente');
+              await page.type('#cliente', PRIME_EMPRESA, { delay: 30 });
+              await page.type('#login', PRIME_USUARIO, { delay: 30 });
+              await page.type('#pass', PRIME_SENHA, { delay: 30 });
+              await page.screenshot({ path: 'step2-filled.png', fullPage: true });
+
+              // Step 3: Submit login
+              console.log('Step 3: Submitting login...');
+              await Promise.all([
+                page.click('#submit-form'),
+                page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 60000 }).catch(() => {})
+              ]);
+              await sleep(5000);
+              console.log('URL after login:', page.url());
+              await page.screenshot({ path: 'step3-logged.png', fullPage: true });
+
+              // Step 4: Navigate directly to Consulta_Posto.aspx (Estabelecimentos page)
+              // This is the page that shows the list of establishments with filters
+              console.log('Step 4: Navigating to Consulta_Posto.aspx (Estabelecimentos)...');
+              await page.goto('https://sistema.primebeneficios.com.br/Admin/Consulta_Posto.aspx', {
+                waitUntil: 'networkidle2',
+                timeout: 60000
+              });
+              await sleep(3000);
+              console.log('URL after navigation:', page.url());
+              await page.screenshot({ path: 'step4-estabelecimentos.png', fullPage: true });
+
+              // Debug: List all selects on the page
+              const allSelects = await page.evaluate(() => {
+                const selects = document.querySelectorAll('select');
+                return Array.from(selects).map((s, i) => ({
+                  index: i,
+                  id: s.id,
+                  name: s.name,
+                  optionsCount: s.options.length,
+                  firstOptions: Array.from(s.options).slice(0, 10).map(o => ({ value: o.value, text: o.text }))
+                }));
+              });
+              console.log('Selects found on page:', JSON.stringify(allSelects, null, 2));
+
+              // Debug: List all buttons and links
+              const buttonsAndLinks = await page.evaluate(() => {
+                const elements = document.querySelectorAll('button, input[type="button"], input[type="submit"], a');
+                return Array.from(elements).slice(0, 20).map(el => ({
+                  tag: el.tagName,
+                  type: el.type || null,
+                  id: el.id || null,
+                  text: (el.textContent || el.value || '').trim().substring(0, 30),
+                  href: el.href || null
+                }));
+              });
+              console.log('Buttons and links:', JSON.stringify(buttonsAndLinks, null, 2));
+
+              // Step 5: Expand Filtros section (if collapsed)
+              console.log('Step 5: Expanding Filtros...');
+              const filtrosClicked = await page.evaluate(() => {
+                const elements = document.querySelectorAll('*');
+                for (const el of elements) {
+                  const text = el.textContent.trim();
+                  if (text === 'Filtros' || (text.includes('Filtros') && text.length < 20)) {
+                    el.click();
+                    return { clicked: true, tag: el.tagName, text: text };
+                  }
+                }
+                return { clicked: false };
+              });
+              console.log('Filtros click result:', JSON.stringify(filtrosClicked));
+              await sleep(2000);
+              await page.screenshot({ path: 'step5-filtros.png', fullPage: true });
+
+              // Debug: Log all selects after expanding Filtros
+              const selectsAfterFiltros = await page.evaluate(() => {
+                const selects = document.querySelectorAll('select');
+                return Array.from(selects).map((s, i) => ({
+                  index: i,
+                  id: s.id,
+                  name: s.name,
+                  optionsCount: s.options.length,
+                  firstOptions: Array.from(s.options).slice(0, 5).map(o => o.text)
+                }));
+              });
+              console.log('Selects after Filtros:', JSON.stringify(selectsAfterFiltros, null, 2));
+
+              // Step 6: Select filters
+              console.log('Step 6: Selecting filters...');
+
+              // Select UF = SP
+              const ufResult = await page.evaluate(() => {
+                const selects = document.querySelectorAll('select');
+                for (const sel of selects) {
+                  for (const opt of sel.options) {
+                    if (opt.value === 'SP' || opt.text === 'SP') {
+                      sel.value = opt.value;
+                      sel.dispatchEvent(new Event('change', { bubbles: true }));
+                      return 'SP selected in ' + (sel.id || sel.name);
+                    }
+                  }
+                }
+                return 'SP not found';
+              });
+              console.log('UF:', ufResult);
+              await sleep(3000);
+
+              // Select Cidade = GUARULHOS
+              const cidadeResult = await page.evaluate(() => {
+                const selects = document.querySelectorAll('select');
+                for (const sel of selects) {
+                  for (const opt of sel.options) {
+                    if (opt.text.toUpperCase().includes('GUARULHOS')) {
+                      sel.value = opt.value;
+                      sel.dispatchEvent(new Event('change', { bubbles: true }));
+                      return 'GUARULHOS selected';
+                    }
+                  }
+                }
+                return 'GUARULHOS not found';
+              });
+              console.log('Cidade:', cidadeResult);
+              await sleep(2000);
+
+              // Select Tipo = POSTO
+              const tipoResult = await page.evaluate(() => {
+                const selects = document.querySelectorAll('select');
+                for (const sel of selects) {
+                  for (const opt of sel.options) {
+                    if (opt.text.toUpperCase() === 'POSTO') {
+                      sel.value = opt.value;
+                      sel.dispatchEvent(new Event('change', { bubbles: true }));
+                      return 'POSTO selected';
+                    }
+                  }
+                }
+                return 'POSTO not found';
+              });
+              console.log('Tipo:', tipoResult);
+              await sleep(2000);
+              await page.screenshot({ path: 'step6-filters.png', fullPage: true });
+
+              // Step 7: Click Buscar
+              console.log('Step 7: Clicking Buscar...');
+              const buscarResult = await page.evaluate(() => {
+                const elements = document.querySelectorAll('button, a, input');
+                for (const el of elements) {
+                  const text = el.textContent || el.value || '';
+                  if (text.includes('Buscar')) {
+                    el.click();
+                    return 'Buscar clicked';
+                  }
+                }
+                return 'Buscar not found';
+              });
+              console.log('Buscar:', buscarResult);
+              await sleep(10000);
+              await page.screenshot({ path: 'step7-buscar.png', fullPage: true });
+
+              // Step 8: Click PDF directly using its ID (download_txt2)
+              // The PDF link is: <a id="download_txt2" href="javascript:__doPostBack('download_txt2','')">PDF</a>
+              console.log('Step 8: Clicking PDF download link...');
+
+              // First check if the PDF link exists
+              const pdfLinkExists = await page.$('#download_txt2');
+              console.log('PDF link exists:', !!pdfLinkExists);
+
+              if (pdfLinkExists) {
+                // Click the PDF link directly by ID
+                await page.click('#download_txt2');
+                console.log('PDF link clicked via ID');
+              } else {
+                // Fallback: try using postback directly
+                console.log('PDF link not found, trying postback...');
+                await page.evaluate(() => {
+                  if (typeof __doPostBack === 'function') {
+                    __doPostBack('download_txt2', '');
+                  }
+                });
+              }
+
+              await page.screenshot({ path: 'step8-pdf-clicked.png', fullPage: true });
+
+              // Wait for download with progress checking
+              console.log('Waiting for download...');
+              let downloadComplete = false;
+              let attempts = 0;
+              const maxAttempts = 30; // 30 * 5 seconds = 150 seconds max
+
+              while (!downloadComplete && attempts < maxAttempts) {
+                await sleep(5000);
+                attempts++;
+
+                const files = fs.readdirSync(downloadPath);
+                console.log(`Attempt ${attempts}: Files in download folder:`, files);
+
+                // Check for completed downloads (not .crdownload or .tmp files)
+                const completedFiles = files.filter(f =>
+                  !f.endsWith('.crdownload') &&
+                  !f.endsWith('.tmp') &&
+                  !f.startsWith('.')
+                );
+
+                if (completedFiles.length > 0) {
+                  console.log('Download completed! Files:', completedFiles);
+                  downloadComplete = true;
+
+                  const pdfFile = completedFiles.find(f => f.toLowerCase().endsWith('.pdf')) || completedFiles[0];
+                  fs.copyFileSync(path.join(downloadPath, pdfFile), './prime-report.pdf');
+                  console.log('Saved as prime-report.pdf');
+                }
+              }
+
+              await page.screenshot({ path: 'step9-final.png', fullPage: true });
+
+              if (!downloadComplete) {
+                // List all files for debugging
+                console.log('Download folder contents:', fs.readdirSync(downloadPath));
+                console.log('Current directory contents:', fs.readdirSync('.'));
+                console.error('Download did not complete within timeout');
+                process.exit(1);
+              }
+
+            } catch (error) {
+              console.error('Error:', error.message);
+              await page.screenshot({ path: 'error.png', fullPage: true });
+              throw error;
+            } finally {
+              await browser.close();
+            }
+          }
+
+          main().catch(err => {
+            console.error('Fatal:', err);
+            process.exit(1);
+          });
+          EOF
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-screenshots
+          path: '*.png'
+          retention-days: 7
+
+      - name: Commit report
+        if: success()
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add prime-report.pdf || true
+          git diff --staged --quiet || git commit -m "Update Prime report [automated]"
+          git push
