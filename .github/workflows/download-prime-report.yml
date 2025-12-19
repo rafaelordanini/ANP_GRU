@@ -92,9 +92,10 @@ jobs:
               console.log('URL after login:', page.url());
               await page.screenshot({ path: 'step3-logged.png', fullPage: true });
 
-              // Step 4: Navigate to CONSULTA menu page
-              console.log('Step 4: Navigating to CONSULTA menu...');
-              await page.goto('https://sistema.primebeneficios.com.br/Admin/Novos/Menus/MenuConsultaInicial.aspx', {
+              // Step 4: Navigate directly to the iframe content (SubMenuConsulta.aspx)
+              // The menu is inside an iframe, so we navigate directly to its URL
+              console.log('Step 4: Navigating to SubMenuConsulta (iframe content)...');
+              await page.goto('https://sistema.primebeneficios.com.br/Admin/Novos/Menus/SubMenuConsulta.aspx?visualiza=N', {
                 waitUntil: 'networkidle2',
                 timeout: 60000
               });
@@ -102,80 +103,36 @@ jobs:
               console.log('URL after CONSULTA:', page.url());
               await page.screenshot({ path: 'step4-consulta.png', fullPage: true });
 
-              // Debug: Check for iframes
-              const iframes = await page.evaluate(() => {
-                return Array.from(document.querySelectorAll('iframe')).map(f => ({
-                  id: f.id,
-                  name: f.name,
-                  src: f.src
-                }));
-              });
-              console.log('Iframes on page:', JSON.stringify(iframes));
-
-              // Debug: List ALL elements containing "Estabelecimentos"
-              const allElements = await page.evaluate(() => {
+              // Debug: List all elements on the submenu page
+              const menuElements = await page.evaluate(() => {
                 const results = [];
-                const walker = document.createTreeWalker(
-                  document.body,
-                  NodeFilter.SHOW_ELEMENT,
-                  null,
-                  false
-                );
-                let node;
-                while (node = walker.nextNode()) {
-                  const text = node.textContent.trim();
-                  if (text === 'Estabelecimentos' ||
-                      (text.includes('Estabelecimentos') && text.length < 50)) {
+                const allElements = document.querySelectorAll('a, li, span, div');
+                for (const el of allElements) {
+                  const text = el.textContent.trim();
+                  if (text.length > 0 && text.length < 50) {
                     results.push({
-                      tag: node.tagName,
-                      id: node.id,
-                      className: node.className,
-                      text: text.substring(0, 50),
-                      href: node.href || null,
-                      onclick: node.onclick ? 'has onclick' : null
+                      tag: el.tagName,
+                      text: text,
+                      href: el.href || null,
+                      id: el.id || null
                     });
                   }
                 }
-                return results;
+                return results.slice(0, 50);
               });
-              console.log('Elements with Estabelecimentos:', JSON.stringify(allElements, null, 2));
+              console.log('Menu elements found:', JSON.stringify(menuElements, null, 2));
 
-              // Debug: Get page structure
-              const pageStructure = await page.evaluate(() => {
-                const body = document.body;
-                const structure = {
-                  childCount: body.children.length,
-                  firstChildren: Array.from(body.children).slice(0, 5).map(c => ({
-                    tag: c.tagName,
-                    id: c.id,
-                    className: c.className?.substring(0, 50)
-                  }))
-                };
-                return structure;
-              });
-              console.log('Page structure:', JSON.stringify(pageStructure, null, 2));
-
-              // Step 5: Click Estabelecimentos - try multiple approaches
+              // Step 5: Click Estabelecimentos in the submenu
               console.log('Step 5: Clicking Estabelecimentos...');
 
-              // Approach 1: Find any element with exact text "Estabelecimentos"
+              // Find and click element containing "Estabelecimentos"
               const estabClicked = await page.evaluate(() => {
-                const allElements = document.querySelectorAll('*');
+                const allElements = document.querySelectorAll('a, li, span, div');
                 for (const el of allElements) {
-                  // Check direct text content (not including children)
-                  const directText = Array.from(el.childNodes)
-                    .filter(n => n.nodeType === Node.TEXT_NODE)
-                    .map(n => n.textContent.trim())
-                    .join('');
-
-                  if (directText === 'Estabelecimentos' || el.textContent.trim() === 'Estabelecimentos') {
+                  const text = el.textContent.trim();
+                  if (text === 'Estabelecimentos') {
                     el.click();
-                    return {
-                      clicked: true,
-                      tag: el.tagName,
-                      id: el.id,
-                      className: el.className
-                    };
+                    return { clicked: true, tag: el.tagName, href: el.href || null };
                   }
                 }
                 return { clicked: false };
@@ -186,35 +143,29 @@ jobs:
               await page.screenshot({ path: 'step5-estabelecimentos.png', fullPage: true });
               console.log('URL after Estabelecimentos click:', page.url());
 
-              // Debug: Check what changed
+              // Debug: List elements after clicking Estabelecimentos
               const afterEstabElements = await page.evaluate(() => {
                 const results = [];
-                const allElements = document.querySelectorAll('*');
+                const allElements = document.querySelectorAll('a, li, span');
                 for (const el of allElements) {
                   const text = el.textContent.trim();
-                  if (text === 'Lista' || (text.includes('Lista') && text.length < 20)) {
-                    results.push({
-                      tag: el.tagName,
-                      id: el.id,
-                      className: el.className,
-                      text: text,
-                      visible: el.offsetParent !== null
-                    });
+                  if (text.length > 0 && text.length < 30) {
+                    results.push({ tag: el.tagName, text: text, href: el.href || null });
                   }
                 }
-                return results;
+                return results.slice(0, 30);
               });
-              console.log('Elements with Lista after click:', JSON.stringify(afterEstabElements, null, 2));
+              console.log('Elements after Estabelecimentos click:', JSON.stringify(afterEstabElements, null, 2));
 
               // Step 6: Click Lista
-              console.log('Step 6: Looking for Lista submenu...');
+              console.log('Step 6: Looking for Lista...');
 
               const listaClicked = await page.evaluate(() => {
-                const allElements = document.querySelectorAll('*');
+                const allElements = document.querySelectorAll('a, li, span');
                 for (const el of allElements) {
-                  if (el.textContent.trim() === 'Lista' && el.offsetParent !== null) {
+                  if (el.textContent.trim() === 'Lista') {
                     el.click();
-                    return { clicked: true, tag: el.tagName, id: el.id };
+                    return { clicked: true, tag: el.tagName, href: el.href || null };
                   }
                 }
                 return { clicked: false };
