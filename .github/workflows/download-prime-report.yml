@@ -92,118 +92,62 @@ jobs:
               console.log('URL after login:', page.url());
               await page.screenshot({ path: 'step3-logged.png', fullPage: true });
 
-              // Step 4: Navigate directly to the iframe content (SubMenuConsulta.aspx)
-              // The menu is inside an iframe, so we navigate directly to its URL
-              console.log('Step 4: Navigating to SubMenuConsulta (iframe content)...');
-              await page.goto('https://sistema.primebeneficios.com.br/Admin/Novos/Menus/SubMenuConsulta.aspx?visualiza=N', {
+              // Step 4: Navigate directly to Consulta_Posto.aspx (Estabelecimentos page)
+              // This is the page that shows the list of establishments with filters
+              console.log('Step 4: Navigating to Consulta_Posto.aspx (Estabelecimentos)...');
+              await page.goto('https://sistema.primebeneficios.com.br/Admin/Consulta_Posto.aspx', {
                 waitUntil: 'networkidle2',
                 timeout: 60000
               });
               await sleep(3000);
-              console.log('URL after CONSULTA:', page.url());
-              await page.screenshot({ path: 'step4-consulta.png', fullPage: true });
+              console.log('URL after navigation:', page.url());
+              await page.screenshot({ path: 'step4-estabelecimentos.png', fullPage: true });
 
-              // Debug: List all elements on the submenu page
-              const menuElements = await page.evaluate(() => {
-                const results = [];
-                const allElements = document.querySelectorAll('a, li, span, div');
-                for (const el of allElements) {
-                  const text = el.textContent.trim();
-                  if (text.length > 0 && text.length < 50) {
-                    results.push({
-                      tag: el.tagName,
-                      text: text,
-                      href: el.href || null,
-                      id: el.id || null
-                    });
-                  }
-                }
-                return results.slice(0, 50);
-              });
-              console.log('Menu elements found:', JSON.stringify(menuElements, null, 2));
-
-              // Step 5: Click Estabelecimentos in the submenu
-              console.log('Step 5: Clicking Estabelecimentos...');
-
-              // Find and click element containing "Estabelecimentos"
-              const estabClicked = await page.evaluate(() => {
-                const allElements = document.querySelectorAll('a, li, span, div');
-                for (const el of allElements) {
-                  const text = el.textContent.trim();
-                  if (text === 'Estabelecimentos') {
-                    el.click();
-                    return { clicked: true, tag: el.tagName, href: el.href || null };
-                  }
-                }
-                return { clicked: false };
-              });
-              console.log('Estabelecimentos click result:', JSON.stringify(estabClicked));
-
-              await sleep(3000);
-              await page.screenshot({ path: 'step5-estabelecimentos.png', fullPage: true });
-              console.log('URL after Estabelecimentos click:', page.url());
-
-              // Debug: List elements after clicking Estabelecimentos
-              const afterEstabElements = await page.evaluate(() => {
-                const results = [];
-                const allElements = document.querySelectorAll('a, li, span');
-                for (const el of allElements) {
-                  const text = el.textContent.trim();
-                  if (text.length > 0 && text.length < 30) {
-                    results.push({ tag: el.tagName, text: text, href: el.href || null });
-                  }
-                }
-                return results.slice(0, 30);
-              });
-              console.log('Elements after Estabelecimentos click:', JSON.stringify(afterEstabElements, null, 2));
-
-              // Step 6: Click Lista
-              console.log('Step 6: Looking for Lista...');
-
-              const listaClicked = await page.evaluate(() => {
-                const allElements = document.querySelectorAll('a, li, span');
-                for (const el of allElements) {
-                  if (el.textContent.trim() === 'Lista') {
-                    el.click();
-                    return { clicked: true, tag: el.tagName, href: el.href || null };
-                  }
-                }
-                return { clicked: false };
-              });
-              console.log('Lista click result:', JSON.stringify(listaClicked));
-
-              await sleep(3000);
-              console.log('URL after Lista click:', page.url());
-              await page.screenshot({ path: 'step6-lista.png', fullPage: true });
-
-              // Debug: List all selects to verify we're on the right page
-              const selectsAfterLista = await page.evaluate(() => {
+              // Debug: List all selects on the page
+              const allSelects = await page.evaluate(() => {
                 const selects = document.querySelectorAll('select');
                 return Array.from(selects).map((s, i) => ({
                   index: i,
                   id: s.id,
                   name: s.name,
-                  optionsCount: s.options.length
+                  optionsCount: s.options.length,
+                  firstOptions: Array.from(s.options).slice(0, 10).map(o => ({ value: o.value, text: o.text }))
                 }));
               });
-              console.log('Selects on current page:', JSON.stringify(selectsAfterLista));
+              console.log('Selects found on page:', JSON.stringify(allSelects, null, 2));
 
-              // Step 7: Expand Filtros
-              console.log('Step 7: Expanding Filtros...');
-              await page.evaluate(() => {
+              // Debug: List all buttons and links
+              const buttonsAndLinks = await page.evaluate(() => {
+                const elements = document.querySelectorAll('button, input[type="button"], input[type="submit"], a');
+                return Array.from(elements).slice(0, 20).map(el => ({
+                  tag: el.tagName,
+                  type: el.type || null,
+                  id: el.id || null,
+                  text: (el.textContent || el.value || '').trim().substring(0, 30),
+                  href: el.href || null
+                }));
+              });
+              console.log('Buttons and links:', JSON.stringify(buttonsAndLinks, null, 2));
+
+              // Step 5: Expand Filtros section (if collapsed)
+              console.log('Step 5: Expanding Filtros...');
+              const filtrosClicked = await page.evaluate(() => {
                 const elements = document.querySelectorAll('*');
                 for (const el of elements) {
-                  if (el.textContent.includes('Filtros') && el.textContent.length < 30) {
+                  const text = el.textContent.trim();
+                  if (text === 'Filtros' || (text.includes('Filtros') && text.length < 20)) {
                     el.click();
-                    break;
+                    return { clicked: true, tag: el.tagName, text: text };
                   }
                 }
+                return { clicked: false };
               });
+              console.log('Filtros click result:', JSON.stringify(filtrosClicked));
               await sleep(2000);
-              await page.screenshot({ path: 'step7-filtros.png', fullPage: true });
+              await page.screenshot({ path: 'step5-filtros.png', fullPage: true });
 
-              // Debug: Log all selects
-              const allSelects = await page.evaluate(() => {
+              // Debug: Log all selects after expanding Filtros
+              const selectsAfterFiltros = await page.evaluate(() => {
                 const selects = document.querySelectorAll('select');
                 return Array.from(selects).map((s, i) => ({
                   index: i,
@@ -213,10 +157,10 @@ jobs:
                   firstOptions: Array.from(s.options).slice(0, 5).map(o => o.text)
                 }));
               });
-              console.log('Selects found:', JSON.stringify(allSelects, null, 2));
+              console.log('Selects after Filtros:', JSON.stringify(selectsAfterFiltros, null, 2));
 
-              // Step 8: Select filters
-              console.log('Step 8: Selecting filters...');
+              // Step 6: Select filters
+              console.log('Step 6: Selecting filters...');
 
               // Select UF = SP
               const ufResult = await page.evaluate(() => {
@@ -268,10 +212,10 @@ jobs:
               });
               console.log('Tipo:', tipoResult);
               await sleep(2000);
-              await page.screenshot({ path: 'step8-filters.png', fullPage: true });
+              await page.screenshot({ path: 'step6-filters.png', fullPage: true });
 
-              // Step 9: Click Buscar
-              console.log('Step 9: Clicking Buscar...');
+              // Step 7: Click Buscar
+              console.log('Step 7: Clicking Buscar...');
               const buscarResult = await page.evaluate(() => {
                 const elements = document.querySelectorAll('button, a, input');
                 for (const el of elements) {
@@ -285,10 +229,10 @@ jobs:
               });
               console.log('Buscar:', buscarResult);
               await sleep(10000);
-              await page.screenshot({ path: 'step9-buscar.png', fullPage: true });
+              await page.screenshot({ path: 'step7-buscar.png', fullPage: true });
 
-              // Step 10: Click Ações
-              console.log('Step 10: Opening Ações...');
+              // Step 8: Click Ações
+              console.log('Step 8: Opening Ações...');
               const acoesResult = await page.evaluate(() => {
                 const elements = document.querySelectorAll('button, a, span, div');
                 for (const el of elements) {
@@ -301,10 +245,10 @@ jobs:
               });
               console.log('Ações:', acoesResult);
               await sleep(2000);
-              await page.screenshot({ path: 'step10-acoes.png', fullPage: true });
+              await page.screenshot({ path: 'step8-acoes.png', fullPage: true });
 
-              // Step 11: Click PDF
-              console.log('Step 11: Clicking PDF...');
+              // Step 9: Click PDF
+              console.log('Step 9: Clicking PDF...');
               const pdfResult = await page.evaluate(() => {
                 const elements = document.querySelectorAll('a, button, li, span');
                 for (const el of elements) {
@@ -318,7 +262,7 @@ jobs:
               });
               console.log('PDF:', pdfResult);
               await sleep(60000);
-              await page.screenshot({ path: 'step11-final.png', fullPage: true });
+              await page.screenshot({ path: 'step9-final.png', fullPage: true });
 
               // Check downloads
               const files = fs.readdirSync(downloadPath);
