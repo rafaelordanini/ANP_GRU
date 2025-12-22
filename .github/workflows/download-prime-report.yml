@@ -231,29 +231,47 @@ jobs:
               await sleep(10000);
               await page.screenshot({ path: 'step7-buscar.png', fullPage: true });
 
-              // Step 8: Click PDF directly using its ID (download_txt2)
-              // The PDF link is: <a id="download_txt2" href="javascript:__doPostBack('download_txt2','')">PDF</a>
-              console.log('Step 8: Clicking PDF download link...');
+              // Step 8: Open Ações dropdown and click PDF
+              console.log('Step 8: Opening Ações dropdown...');
 
-              // First check if the PDF link exists
-              const pdfLinkExists = await page.$('#download_txt2');
-              console.log('PDF link exists:', !!pdfLinkExists);
-
-              if (pdfLinkExists) {
-                // Click the PDF link directly by ID
-                await page.click('#download_txt2');
-                console.log('PDF link clicked via ID');
-              } else {
-                // Fallback: try using postback directly
-                console.log('PDF link not found, trying postback...');
-                await page.evaluate(() => {
-                  if (typeof __doPostBack === 'function') {
-                    __doPostBack('download_txt2', '');
+              // Click the Ações button to open the dropdown
+              const acoesClicked = await page.evaluate(() => {
+                const buttons = document.querySelectorAll('button');
+                for (const btn of buttons) {
+                  if (btn.textContent.trim() === 'Ações') {
+                    btn.click();
+                    return true;
                   }
-                });
-              }
+                }
+                return false;
+              });
+              console.log('Ações clicked:', acoesClicked);
+              await sleep(1000);
 
-              await page.screenshot({ path: 'step8-pdf-clicked.png', fullPage: true });
+              await page.screenshot({ path: 'step8-acoes-open.png', fullPage: true });
+
+              // Step 9: Click PDF using JavaScript (avoids visibility issues)
+              console.log('Step 9: Clicking PDF download...');
+
+              const pdfClicked = await page.evaluate(() => {
+                // Try clicking by ID first
+                const pdfLink = document.getElementById('download_txt2');
+                if (pdfLink) {
+                  pdfLink.click();
+                  return { method: 'id', success: true };
+                }
+
+                // Fallback: use postback directly
+                if (typeof __doPostBack === 'function') {
+                  __doPostBack('download_txt2', '');
+                  return { method: 'postback', success: true };
+                }
+
+                return { success: false };
+              });
+              console.log('PDF click result:', JSON.stringify(pdfClicked));
+
+              await page.screenshot({ path: 'step9-pdf-clicked.png', fullPage: true });
 
               // Wait for download with progress checking
               console.log('Waiting for download...');
@@ -285,7 +303,7 @@ jobs:
                 }
               }
 
-              await page.screenshot({ path: 'step9-final.png', fullPage: true });
+              await page.screenshot({ path: 'step10-final.png', fullPage: true });
 
               if (!downloadComplete) {
                 // List all files for debugging
