@@ -707,8 +707,8 @@
                 <br><br>
                 <i class="far fa-calendar-alt"></i> Período dos dados: <span class="data-period" id="dataPeriod">Carregando...</span>
                 <br>
-                <a href="https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-revenda-e-de-distribuicao-combustiveis/shlp/semanal/semanal-municipio-2024-2025.xlsx"
-                   target="_blank" class="download-link">
+                <a href="https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-revenda-e-de-distribuicao-combustiveis/serie-historica-do-levantamento-de-precos"
+                   target="_blank" class="download-link" id="downloadExcelLink">
                     <i class="fas fa-download"></i>
                     Baixar Planilha da ANP
                 </a>
@@ -885,7 +885,7 @@ GASOLINA R$ ${gasolinaFormatted}
             });
         }
 
-        function updateUI(data, periodStart, periodEnd) {
+        function updateUI(data, periodStart, periodEnd, sourceUrl) {
             currentPrices.gasolinaComum = data.gasolinaComum;
             currentPrices.etanol = data.etanol;
 
@@ -907,6 +907,14 @@ GASOLINA R$ ${gasolinaFormatted}
             document.getElementById('referenceWeekText').textContent = weekText;
             document.getElementById('referenceWeek').style.display = 'flex';
             document.getElementById('dataPeriod').textContent = weekText;
+
+            // Update Excel download link if sourceUrl is available
+            if (sourceUrl) {
+                const downloadLink = document.getElementById('downloadExcelLink');
+                if (downloadLink) {
+                    downloadLink.href = sourceUrl;
+                }
+            }
 
             document.getElementById('liveStatus').style.display = 'flex';
             hideError();
@@ -934,7 +942,7 @@ GASOLINA R$ ${gasolinaFormatted}
                     throw new Error('Dados ainda não disponíveis. Aguarde a atualização automática.');
                 }
 
-                updateUI(result.data, result.periodStart, result.periodEnd);
+                updateUI(result.data, result.periodStart, result.periodEnd, result.sourceUrl);
             } catch (error) {
                 console.error('Error fetching fuel prices:', error);
                 showError('Erro ao buscar dados: ' + error.message);
