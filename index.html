@@ -206,7 +206,8 @@
 
         .fuel-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            grid-template-columns: repeat(2, minmax(220px, 320px));
+            justify-content: center;
             gap: 20px;
             margin-bottom: 30px;
         }
@@ -673,19 +674,6 @@
                 <div class="fuel-unit">por litro</div>
             </div>
 
-            <div class="fuel-card diesel loading">
-                <div class="fuel-icon"><i class="fas fa-truck"></i></div>
-                <div class="fuel-name">Diesel</div>
-                <div class="fuel-price" id="priceDiesel">R$ --</div>
-                <div class="fuel-unit">por litro</div>
-            </div>
-
-            <div class="fuel-card gnv loading">
-                <div class="fuel-icon"><i class="fas fa-wind"></i></div>
-                <div class="fuel-name">GNV</div>
-                <div class="fuel-price" id="priceGNV">R$ --</div>
-                <div class="fuel-unit">por m³</div>
-            </div>
         </div>
 
         <div class="update-section">
@@ -893,10 +881,6 @@ GASOLINA R$ ${gasolinaFormatted}
                 `<span class="currency">R$</span> ${formatPrice(data.gasolinaComum)}`;
             document.getElementById('priceEtanol').innerHTML =
                 `<span class="currency">R$</span> ${formatPrice(data.etanol)}`;
-            document.getElementById('priceDiesel').innerHTML =
-                `<span class="currency">R$</span> ${formatPrice(data.diesel)}`;
-            document.getElementById('priceGNV').innerHTML =
-                `<span class="currency">R$</span> ${formatPrice(data.gnv)}`;
 
             document.getElementById('lastUpdateTime').textContent = formatDateTime(new Date());
 
