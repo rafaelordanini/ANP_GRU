@@ -58,21 +58,40 @@ jobs:
 
           function excelDateToJS(serial) {
             if (serial instanceof Date) {
-              // Ajusta para evitar problema de fuso horário
-              return new Date(serial.getTime() + serial.getTimezoneOffset() * 60000);
+              // xlsx com cellDates:true retorna Date em UTC
+              // Usamos os valores UTC diretamente para evitar problemas de fuso
+              return serial;
             }
-            if (typeof serial === 'string') return new Date(serial + 'T12:00:00');
-            // Excel serial date - adiciona 12h para evitar problema de fuso
+            if (typeof serial === 'string') {
+              // Parse string como data local
+              const parts = serial.split(/[-\/]/);
+              if (parts.length === 3) {
+                // Assume formato YYYY-MM-DD ou DD/MM/YYYY
+                if (parts[0].length === 4) {
+                  return new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 12, 0, 0));
+                } else {
+                  return new Date(Date.UTC(parts[2], parts[1] - 1, parts[0], 12, 0, 0));
+                }
+              }
+              return new Date(serial);
+            }
+            // Excel serial date (número)
+            // Excel usa 1/1/1900 como dia 1, JavaScript usa 1/1/1970
+            // 25569 é o número de dias entre essas duas datas
             const utcDays = serial - 25569;
-            return new Date((utcDays * 86400 + 43200) * 1000);
+            return new Date(Date.UTC(1970, 0, 1 + utcDays, 12, 0, 0));
           }
 
           function formatDate(date) {
-            // Formata usando UTC para evitar mudança de dia
-            const year = date.getUTCFullYear();
-            const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-            const day = String(date.getUTCDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
+            // Para Date objects do xlsx com cellDates:true, usar getDate() local
+            // pois o xlsx já converte para a data correta
+            if (date instanceof Date) {
+              const year = date.getFullYear();
+              const month = String(date.getMonth() + 1).padStart(2, '0');
+              const day = String(date.getDate()).padStart(2, '0');
+              return `${year}-${month}-${day}`;
+            }
+            return null;
           }
 
           async function findLatestExcelUrl() {
