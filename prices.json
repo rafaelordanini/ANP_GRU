@@ -6,8 +6,8 @@
     "diesel": 6.17,
     "gnv": 3.92
   },
-  "periodStart": "2025-12-14",
-  "periodEnd": "2025-12-20",
+  "periodStart": "2025-12-15",
+  "periodEnd": "2025-12-21",
   "sourceUrl": "https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-revenda-e-de-distribuicao-combustiveis/shlp/semanal/semanal-municipio-2024-2025.xlsx",
-  "updatedAt": "2025-12-29T11:24:14.688Z"
+  "updatedAt": "2025-12-29T11:48:28.450Z"
 }
