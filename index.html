@@ -428,6 +428,47 @@
             display: flex;
         }
 
+        .warning-message {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid #f59e0b;
+            color: #d97706;
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            display: none;
+            align-items: flex-start;
+            gap: 10px;
+            text-align: left;
+            line-height: 1.5;
+        }
+
+        .warning-message.show {
+            display: flex;
+        }
+
+        .warning-message i {
+            margin-top: 3px;
+            flex-shrink: 0;
+        }
+
+        .dark .warning-message {
+            background: rgba(245, 158, 11, 0.15);
+            color: #fbbf24;
+            border-color: #fbbf24;
+        }
+
+        .data-period.outdated {
+            background: rgba(245, 158, 11, 0.2);
+            color: #d97706;
+            border: 1px solid #f59e0b;
+        }
+
+        .dark .data-period.outdated {
+            background: rgba(245, 158, 11, 0.25);
+            color: #fbbf24;
+            border-color: #fbbf24;
+        }
+
         .next-update {
             font-family: 'Space Mono', monospace;
             font-weight: 600;
@@ -659,6 +700,11 @@
             <span id="errorText"></span>
         </div>
 
+        <div class="warning-message" id="warningMessage">
+            <i class="fas fa-exclamation-circle"></i>
+            <span id="warningText"></span>
+        </div>
+
         <div class="fuel-grid" id="fuelGrid">
             <div class="fuel-card gasolina loading">
                 <div class="fuel-icon"><i class="fas fa-fire"></i></div>
@@ -873,6 +919,36 @@ GASOLINA R$ ${gasolinaFormatted}
             });
         }
 
+        function isDataOutdated(periodEnd) {
+            // Calcula o domingo da semana passada
+            const today = new Date();
+            const dayOfWeek = today.getDay(); // 0 = domingo, 1 = segunda, etc.
+
+            // Dias desde o último domingo
+            const daysSinceLastSunday = dayOfWeek === 0 ? 7 : dayOfWeek;
+            const lastSunday = new Date(today);
+            lastSunday.setDate(today.getDate() - daysSinceLastSunday);
+            lastSunday.setHours(0, 0, 0, 0);
+
+            // Data final dos dados
+            const endDate = new Date(periodEnd);
+            endDate.setHours(0, 0, 0, 0);
+
+            // Se a data final é anterior ao último domingo, os dados estão desatualizados
+            return endDate < lastSunday;
+        }
+
+        function showWarning(message) {
+            const warningElement = document.getElementById('warningMessage');
+            const warningText = document.getElementById('warningText');
+            warningText.innerHTML = message;
+            warningElement.classList.add('show');
+        }
+
+        function hideWarning() {
+            document.getElementById('warningMessage').classList.remove('show');
+        }
+
         function updateUI(data, periodStart, periodEnd, sourceUrl) {
             currentPrices.gasolinaComum = data.gasolinaComum;
             currentPrices.etanol = data.etanol;
@@ -890,7 +966,24 @@ GASOLINA R$ ${gasolinaFormatted}
             const weekText = `${startFormatted} a ${endFormatted}`;
             document.getElementById('referenceWeekText').textContent = weekText;
             document.getElementById('referenceWeek').style.display = 'flex';
-            document.getElementById('dataPeriod').textContent = weekText;
+
+            const dataPeriodElement = document.getElementById('dataPeriod');
+            dataPeriodElement.textContent = weekText;
+
+            // Verificar se os dados estão desatualizados
+            const outdated = isDataOutdated(periodEnd);
+
+            if (outdated) {
+                // Adicionar classe de desatualizado ao período
+                dataPeriodElement.classList.add('outdated');
+
+                // Mostrar mensagem de aviso
+                const warningMsg = `<strong>⚠️ Dados desatualizados:</strong> Os valores ainda não foram atualizados pela ANP e são referentes à semana de ${startFormatted} a ${endFormatted}. Atualize novamente em alguns minutos ou verifique o site da ANP.`;
+                showWarning(warningMsg);
+            } else {
+                dataPeriodElement.classList.remove('outdated');
+                hideWarning();
+            }
 
             // Update Excel download link if sourceUrl is available
             if (sourceUrl) {
