@@ -187,6 +187,45 @@
             animation: pulse 2s infinite;
         }
 
+        .status-item.outdated {
+            border: 1px solid #f59e0b;
+            background: rgba(245, 158, 11, 0.1);
+        }
+
+        .status-item.outdated i {
+            color: #f59e0b;
+            animation: pulse 2s infinite;
+        }
+
+        .status-item.outdated span {
+            color: #d97706;
+        }
+
+        .dark .status-item.outdated {
+            background: rgba(245, 158, 11, 0.15);
+        }
+
+        .dark .status-item.outdated i {
+            color: #fbbf24;
+        }
+
+        .dark .status-item.outdated span {
+            color: #fbbf24;
+        }
+
+        .status-item.error {
+            border: 1px solid var(--danger);
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .status-item.error i {
+            color: var(--danger);
+        }
+
+        .status-item.error span {
+            color: var(--danger);
+        }
+
         .status-item.reference-week {
             background: linear-gradient(135deg, var(--accent-light), rgba(168, 85, 247, 0.15));
             border: 1px solid var(--accent);
@@ -690,8 +729,8 @@
                 <span>Próxima: <strong class="next-update" id="nextUpdateTime">07:00</strong></span>
             </div>
             <div class="status-item live" id="liveStatus" style="display: none;">
-                <i class="fas fa-circle"></i>
-                <span>Dados atualizados</span>
+                <i class="fas fa-circle" id="liveStatusIcon"></i>
+                <span id="liveStatusText">Dados atualizados</span>
             </div>
         </div>
 
@@ -978,7 +1017,7 @@ GASOLINA R$ ${gasolinaFormatted}
                 dataPeriodElement.classList.add('outdated');
 
                 // Mostrar mensagem de aviso
-                const warningMsg = `<strong>⚠️ Dados desatualizados:</strong> Os valores ainda não foram atualizados pela ANP e são referentes à semana de ${startFormatted} a ${endFormatted}. Atualize novamente em alguns minutos.`;
+                const warningMsg = `<strong>⚠️ Dados desatualizados:</strong> Os valores ainda não foram atualizados pela ANP e são referentes à semana de ${startFormatted} a ${endFormatted}. Atualize novamente em alguns minutos ou verifique o site da ANP.`;
                 showWarning(warningMsg);
             } else {
                 dataPeriodElement.classList.remove('outdated');
@@ -993,9 +1032,36 @@ GASOLINA R$ ${gasolinaFormatted}
                 }
             }
 
-            document.getElementById('liveStatus').style.display = 'flex';
+            // Atualizar status do flag baseado nos dados
+            const liveStatus = document.getElementById('liveStatus');
+            const liveStatusText = document.getElementById('liveStatusText');
+
+            // Remover classes anteriores
+            liveStatus.classList.remove('live', 'outdated', 'error');
+
+            if (outdated) {
+                // Dados do site da ANP desatualizados (amarelo)
+                liveStatus.classList.add('outdated');
+                liveStatusText.textContent = 'Site da ANP desatualizado';
+            } else {
+                // Dados atualizados (verde)
+                liveStatus.classList.add('live');
+                liveStatusText.textContent = 'Dados atualizados';
+            }
+
+            liveStatus.style.display = 'flex';
             hideError();
             document.getElementById('whatsappBtn').disabled = false;
+        }
+
+        function setStatusError() {
+            const liveStatus = document.getElementById('liveStatus');
+            const liveStatusText = document.getElementById('liveStatusText');
+
+            liveStatus.classList.remove('live', 'outdated', 'error');
+            liveStatus.classList.add('error');
+            liveStatusText.textContent = 'Erro ao carregar dados';
+            liveStatus.style.display = 'flex';
         }
 
         async function fetchFuelPrices() {
@@ -1023,6 +1089,7 @@ GASOLINA R$ ${gasolinaFormatted}
             } catch (error) {
                 console.error('Error fetching fuel prices:', error);
                 showError('Erro ao buscar dados: ' + error.message);
+                setStatusError();
             } finally {
                 setLoading(false);
             }
