@@ -92,219 +92,245 @@ jobs:
               console.log('URL after login:', page.url());
               await page.screenshot({ path: 'step3-after-login.png', fullPage: true });
 
-              // Step 4: Wait for iframe to load and get the main frame
-              console.log('Step 4: Looking for iframe...');
-              await sleep(3000);
+              // Step 4: Close the COMUNICADO modal by clicking "Próximo"
+              console.log('Step 4: Looking for COMUNICADO modal...');
+              await sleep(2000);
 
-              // The admin panel uses an iframe structure. We need to find and work with it.
-              const frames = page.frames();
-              console.log('Found frames:', frames.length);
-              frames.forEach((f, i) => console.log(`Frame ${i}: ${f.url()}`));
-
-              // Try to find the content iframe
-              let contentFrame = null;
-              for (const frame of frames) {
-                const url = frame.url();
-                if (url.includes('Admin') && !url.includes('Admin.aspx')) {
-                  contentFrame = frame;
-                  console.log('Found content frame:', url);
-                  break;
-                }
-              }
-
-              // If no content frame found, try navigating directly within the current context
-              // by executing JavaScript in the page context
-              console.log('Step 5: Navigating to Veiculos page via menu...');
-
-              // Try clicking menu through JavaScript
-              const menuClicked = await page.evaluate(() => {
-                // Try to find and click CONSULTA menu
-                const menuItems = document.querySelectorAll('a, li');
-                for (const item of menuItems) {
-                  if (item.textContent && item.textContent.trim().toUpperCase().includes('CONSULTA')) {
-                    item.click();
-                    return { found: 'CONSULTA', clicked: true };
+              // Try to close the modal
+              const modalClosed = await page.evaluate(() => {
+                // Look for "Próximo" button
+                const buttons = document.querySelectorAll('button, input[type="button"], a');
+                for (const btn of buttons) {
+                  const text = btn.textContent ? btn.textContent.trim() : '';
+                  const value = btn.value ? btn.value.trim() : '';
+                  if (text === 'Próximo' || value === 'Próximo' || text === 'Fechar' || text === 'OK') {
+                    btn.click();
+                    return { found: true, text: text || value };
                   }
                 }
 
-                // Try in iframes
-                const iframes = document.querySelectorAll('iframe');
-                for (const iframe of iframes) {
-                  try {
-                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-                    const items = iframeDoc.querySelectorAll('a, li');
-                    for (const item of items) {
-                      if (item.textContent && item.textContent.trim().toUpperCase().includes('CONSULTA')) {
-                        item.click();
-                        return { found: 'CONSULTA in iframe', clicked: true };
-                      }
-                    }
-                  } catch(e) {
-                    // cross-origin
-                  }
+                // Try clicking modal close button (X)
+                const closeButtons = document.querySelectorAll('.close, .modal-close, [data-dismiss="modal"]');
+                if (closeButtons.length > 0) {
+                  closeButtons[0].click();
+                  return { found: true, method: 'close button' };
                 }
+
+                // Try pressing Escape
+                document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', keyCode: 27 }));
+
                 return { found: false };
               });
-              console.log('Menu click result:', JSON.stringify(menuClicked));
+              console.log('Modal close result:', JSON.stringify(modalClosed));
               await sleep(2000);
-              await page.screenshot({ path: 'step5-after-menu.png', fullPage: true });
+
+              // Try multiple times to close modals
+              for (let i = 0; i < 5; i++) {
+                const hasModal = await page.evaluate(() => {
+                  const modals = document.querySelectorAll('.modal, .popup, [role="dialog"]');
+                  for (const modal of modals) {
+                    const style = window.getComputedStyle(modal);
+                    if (style.display !== 'none' && style.visibility !== 'hidden') {
+                      // Find and click close button
+                      const btns = modal.querySelectorAll('button, a');
+                      for (const btn of btns) {
+                        const text = btn.textContent ? btn.textContent.trim() : '';
+                        if (text.includes('Próximo') || text.includes('Fechar') || text.includes('OK') || text.includes('×')) {
+                          btn.click();
+                          return { closed: true, text };
+                        }
+                      }
+                    }
+                  }
+                  return { closed: false };
+                });
+                console.log(`Modal check ${i+1}:`, JSON.stringify(hasModal));
+                if (!hasModal.closed) break;
+                await sleep(1000);
+              }
+
+              await page.screenshot({ path: 'step4-after-modal.png', fullPage: true });
+
+              // Step 5: Find and click on CONSULTA menu
+              console.log('Step 5: Looking for CONSULTA menu...');
+
+              const consultaClicked = await page.evaluate(() => {
+                // Look for menu items containing "CONSULTA"
+                const allElements = document.querySelectorAll('a, li, span, div');
+                for (const el of allElements) {
+                  const text = el.textContent ? el.textContent.trim().toUpperCase() : '';
+                  if (text === 'CONSULTA' || text === 'CONSULTAS') {
+                    el.click();
+                    return { found: true, text: el.textContent };
+                  }
+                }
+
+                // Try looking for expandable menu with CONSULTA
+                const menuHeaders = document.querySelectorAll('[data-toggle="collapse"], .accordion-header, .menu-header');
+                for (const header of menuHeaders) {
+                  if (header.textContent && header.textContent.toUpperCase().includes('CONSULTA')) {
+                    header.click();
+                    return { found: true, type: 'accordion', text: header.textContent };
+                  }
+                }
+
+                return { found: false };
+              });
+              console.log('CONSULTA click result:', JSON.stringify(consultaClicked));
+              await sleep(2000);
+              await page.screenshot({ path: 'step5-consulta-menu.png', fullPage: true });
 
               // Step 6: Click on Veículos submenu
               console.log('Step 6: Looking for Veículos submenu...');
+
               const veiculosClicked = await page.evaluate(() => {
-                const findAndClick = (doc) => {
-                  const items = doc.querySelectorAll('a, li, span');
-                  for (const item of items) {
-                    const text = item.textContent ? item.textContent.trim().toUpperCase() : '';
-                    if (text === 'VEÍCULOS' || text === 'VEICULOS') {
-                      item.click();
-                      return true;
+                const allElements = document.querySelectorAll('a, li, span');
+                for (const el of allElements) {
+                  const text = el.textContent ? el.textContent.trim() : '';
+                  if (text === 'Veículos' || text === 'VEÍCULOS' || text === 'Veiculos' || text === 'VEICULOS') {
+                    // Make sure it's visible
+                    const rect = el.getBoundingClientRect();
+                    if (rect.width > 0 && rect.height > 0) {
+                      el.click();
+                      return { found: true, text };
                     }
                   }
-                  return false;
-                };
-
-                if (findAndClick(document)) return { found: 'main doc', clicked: true };
-
-                const iframes = document.querySelectorAll('iframe');
-                for (const iframe of iframes) {
-                  try {
-                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-                    if (findAndClick(iframeDoc)) return { found: 'iframe', clicked: true };
-                  } catch(e) {}
                 }
                 return { found: false };
               });
               console.log('Veículos click result:', JSON.stringify(veiculosClicked));
               await sleep(3000);
-              await page.screenshot({ path: 'step6-after-veiculos.png', fullPage: true });
+              await page.screenshot({ path: 'step6-veiculos-clicked.png', fullPage: true });
 
-              // Step 7: Navigate directly to Consulta_Veiculos.aspx within the iframe
-              console.log('Step 7: Trying direct navigation within iframe context...');
+              // Step 7: Check current URL and frames
+              console.log('Step 7: Checking page state...');
+              console.log('Current URL:', page.url());
 
-              // Get all frames again after navigation
-              await sleep(2000);
-              const allFrames = page.frames();
-              console.log('Current frames:', allFrames.length);
-
-              let targetFrame = page.mainFrame();
-              for (const frame of allFrames) {
-                const url = frame.url();
-                console.log('Checking frame:', url);
-                if (url.includes('sistema.primebeneficios.com.br')) {
-                  targetFrame = frame;
-                  console.log('Using frame:', url);
-                  break;
-                }
+              const frames = page.frames();
+              console.log('Number of frames:', frames.length);
+              for (let i = 0; i < frames.length; i++) {
+                console.log(`Frame ${i}: ${frames[i].url()}`);
               }
 
-              // Try navigating using __doPostBack which is how ASP.NET navigation works
-              console.log('Step 8: Attempting __doPostBack navigation...');
-              const postbackResult = await targetFrame.evaluate(() => {
-                // Try to find the menu and trigger navigation
-                if (typeof __doPostBack === 'function') {
-                  // Common ASP.NET postback targets for menu items
-                  const possibleTargets = [
-                    'ctl00$MenuLateral1$rptMenu$ctl02$rptSubMenu$ctl01$lnkSubItem',
-                    'ctl00$MenuLateral1$rptMenu$ctl01$rptSubMenu$ctl00$lnkSubItem',
-                    'MenuLateral1$rptMenu$ctl02$rptSubMenu$ctl01$lnkSubItem'
-                  ];
+              // Step 8: Look for Ações button and XLS download
+              console.log('Step 8: Looking for Ações button...');
 
-                  for (const target of possibleTargets) {
-                    try {
-                      __doPostBack(target, '');
-                      return { method: 'postback', target: target, success: true };
-                    } catch(e) {
-                      // continue
-                    }
+              // Try in main page first
+              let acoesFound = await page.evaluate(() => {
+                const buttons = document.querySelectorAll('button');
+                for (const btn of buttons) {
+                  if (btn.textContent && btn.textContent.trim() === 'Ações') {
+                    btn.click();
+                    return { found: true, location: 'main page' };
                   }
                 }
+                return { found: false };
+              });
 
-                // Try direct link navigation
-                const links = document.querySelectorAll('a[href*="Veiculos"], a[href*="veiculos"]');
-                if (links.length > 0) {
-                  links[0].click();
-                  return { method: 'link', success: true };
-                }
-
-                return { success: false };
-              }).catch(e => ({ error: e.message }));
-              console.log('Postback result:', JSON.stringify(postbackResult));
-              await sleep(3000);
-              await page.screenshot({ path: 'step8-after-postback.png', fullPage: true });
-
-              // Step 9: Try navigating the iframe directly to the vehicles page
-              console.log('Step 9: Navigating iframe to Consulta_Veiculos.aspx...');
-
-              // Find the main content iframe
-              const iframeHandle = await page.$('iframe[name="main"], iframe[id="main"], iframe');
-              if (iframeHandle) {
-                console.log('Found iframe element');
-                const frame = await iframeHandle.contentFrame();
-                if (frame) {
-                  console.log('Got iframe content frame');
+              // If not found, try in frames
+              if (!acoesFound.found) {
+                for (const frame of frames) {
                   try {
-                    await frame.goto('https://sistema.primebeneficios.com.br/Admin/Consulta_Veiculos.aspx', {
-                      waitUntil: 'networkidle2',
-                      timeout: 30000
-                    });
-                    console.log('Navigated iframe to Veiculos page');
-                    await sleep(3000);
-                    await page.screenshot({ path: 'step9-veiculos-page.png', fullPage: true });
-
-                    // Now try to download XLS from within the iframe
-                    console.log('Step 10: Looking for Ações button in iframe...');
-                    const acoesResult = await frame.evaluate(() => {
+                    const result = await frame.evaluate(() => {
                       const buttons = document.querySelectorAll('button');
                       for (const btn of buttons) {
-                        if (btn.textContent.trim() === 'Ações') {
+                        if (btn.textContent && btn.textContent.trim() === 'Ações') {
                           btn.click();
-                          return { found: true, clicked: true };
+                          return { found: true };
                         }
                       }
                       return { found: false };
                     });
-                    console.log('Ações result:', JSON.stringify(acoesResult));
-                    await sleep(1000);
-                    await page.screenshot({ path: 'step10-acoes.png', fullPage: true });
-
-                    // Click XLS download
-                    console.log('Step 11: Clicking XLS download...');
-                    const xlsResult = await frame.evaluate(() => {
-                      // Try by ID
-                      const xlsLink = document.getElementById('download_txt');
-                      if (xlsLink) {
-                        xlsLink.click();
-                        return { method: 'id', success: true };
-                      }
-
-                      // Try by text
-                      const links = document.querySelectorAll('a');
-                      for (const link of links) {
-                        if (link.textContent.trim().toUpperCase() === 'XLS') {
-                          link.click();
-                          return { method: 'text', success: true };
-                        }
-                      }
-
-                      // Try postback
-                      if (typeof __doPostBack === 'function') {
-                        __doPostBack('download_txt', '');
-                        return { method: 'postback', success: true };
-                      }
-
-                      return { success: false };
-                    });
-                    console.log('XLS result:', JSON.stringify(xlsResult));
-                    await page.screenshot({ path: 'step11-xls.png', fullPage: true });
-                  } catch (navError) {
-                    console.log('Iframe navigation error:', navError.message);
+                    if (result.found) {
+                      acoesFound = { found: true, location: 'frame', url: frame.url() };
+                      break;
+                    }
+                  } catch (e) {
+                    // Skip cross-origin frames
                   }
                 }
               }
 
-              // Step 12: Wait for download
-              console.log('Step 12: Waiting for download...');
+              console.log('Ações result:', JSON.stringify(acoesFound));
+              await sleep(1000);
+              await page.screenshot({ path: 'step8-acoes.png', fullPage: true });
+
+              // Step 9: Click XLS download
+              console.log('Step 9: Looking for XLS download...');
+
+              let xlsFound = await page.evaluate(() => {
+                // Try by ID
+                const xlsLink = document.getElementById('download_txt');
+                if (xlsLink) {
+                  xlsLink.click();
+                  return { found: true, method: 'id' };
+                }
+
+                // Try by text
+                const links = document.querySelectorAll('a, button');
+                for (const link of links) {
+                  const text = link.textContent ? link.textContent.trim().toUpperCase() : '';
+                  if (text === 'XLS' || text === 'EXCEL' || text === 'EXPORTAR XLS') {
+                    link.click();
+                    return { found: true, method: 'text', text };
+                  }
+                }
+
+                // Try __doPostBack
+                if (typeof __doPostBack === 'function') {
+                  try {
+                    __doPostBack('download_txt', '');
+                    return { found: true, method: 'postback' };
+                  } catch(e) {}
+                }
+
+                return { found: false };
+              });
+
+              // If not found in main page, try frames
+              if (!xlsFound.found) {
+                for (const frame of frames) {
+                  try {
+                    const result = await frame.evaluate(() => {
+                      const xlsLink = document.getElementById('download_txt');
+                      if (xlsLink) {
+                        xlsLink.click();
+                        return { found: true, method: 'id' };
+                      }
+
+                      const links = document.querySelectorAll('a, button');
+                      for (const link of links) {
+                        const text = link.textContent ? link.textContent.trim().toUpperCase() : '';
+                        if (text === 'XLS' || text === 'EXCEL') {
+                          link.click();
+                          return { found: true, method: 'text', text };
+                        }
+                      }
+
+                      if (typeof __doPostBack === 'function') {
+                        try {
+                          __doPostBack('download_txt', '');
+                          return { found: true, method: 'postback' };
+                        } catch(e) {}
+                      }
+
+                      return { found: false };
+                    });
+                    if (result.found) {
+                      xlsFound = { ...result, location: 'frame', url: frame.url() };
+                      break;
+                    }
+                  } catch (e) {
+                    // Skip cross-origin frames
+                  }
+                }
+              }
+
+              console.log('XLS result:', JSON.stringify(xlsFound));
+              await page.screenshot({ path: 'step9-xls.png', fullPage: true });
+
+              // Step 10: Wait for download
+              console.log('Step 10: Waiting for download...');
               let downloadComplete = false;
               let attempts = 0;
               const maxAttempts = 30;
@@ -371,7 +397,7 @@ jobs:
                 }
               }
 
-              await page.screenshot({ path: 'step12-final.png', fullPage: true });
+              await page.screenshot({ path: 'step10-final.png', fullPage: true });
 
               if (!downloadComplete) {
                 console.log('Download folder contents:', fs.readdirSync(downloadPath));
