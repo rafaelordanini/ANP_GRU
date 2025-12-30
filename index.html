@@ -1772,22 +1772,36 @@ GASOLINA R$ ${gasolinaFormatted}
         }
 
         function isDataOutdated(periodEnd) {
-            // Calcula o domingo da semana passada
+            // Os períodos da ANP vão de sábado a sexta-feira
+            // Os dados estão atualizados se periodEnd for a sexta-feira mais recente
             const today = new Date();
-            const dayOfWeek = today.getDay(); // 0 = domingo, 1 = segunda, etc.
+            const dayOfWeek = today.getDay(); // 0 = domingo, 1 = segunda, ..., 5 = sexta, 6 = sábado
 
-            // Dias desde o último domingo
-            const daysSinceLastSunday = dayOfWeek === 0 ? 7 : dayOfWeek;
-            const lastSunday = new Date(today);
-            lastSunday.setDate(today.getDate() - daysSinceLastSunday);
-            lastSunday.setHours(0, 0, 0, 0);
+            // Calcular a última sexta-feira
+            // Dom(0)->2 dias atrás, Seg(1)->3, Ter(2)->4, Qua(3)->5, Qui(4)->6, Sex(5)->0 (hoje), Sáb(6)->1
+            let daysToLastFriday;
+            if (dayOfWeek === 5) {
+                // Hoje é sexta, a última sexta é hoje
+                daysToLastFriday = 0;
+            } else if (dayOfWeek === 6) {
+                // Hoje é sábado, a última sexta foi ontem
+                daysToLastFriday = 1;
+            } else {
+                // Domingo a quinta: voltar para a sexta passada
+                // Dom(0)->2, Seg(1)->3, Ter(2)->4, Qua(3)->5, Qui(4)->6
+                daysToLastFriday = dayOfWeek + 2;
+            }
+
+            const lastFriday = new Date(today);
+            lastFriday.setDate(today.getDate() - daysToLastFriday);
+            lastFriday.setHours(0, 0, 0, 0);
 
             // Data final dos dados
             const endDate = new Date(periodEnd);
             endDate.setHours(0, 0, 0, 0);
 
-            // Se a data final é anterior ao último domingo, os dados estão desatualizados
-            return endDate < lastSunday;
+            // Se a data final é anterior à última sexta-feira, os dados estão desatualizados
+            return endDate < lastFriday;
         }
 
         function showWarning(message) {
