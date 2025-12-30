@@ -1,13 +1,13 @@
 {
   "success": true,
   "data": {
-    "gasolinaComum": 6.07,
-    "etanol": 4.32,
-    "diesel": 6.17,
-    "gnv": 3.92
+    "gasolinaComum": 6,
+    "etanol": 4.29,
+    "diesel": 6.06,
+    "gnv": 3.96
   },
-  "periodStart": "2025-12-15",
-  "periodEnd": "2025-12-21",
+  "periodStart": "2025-12-22",
+  "periodEnd": "2025-12-28",
   "sourceUrl": "https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-revenda-e-de-distribuicao-combustiveis/shlp/semanal/semanal-municipio-2024-2025.xlsx",
-  "updatedAt": "2025-12-29T11:48:28.450Z"
+  "updatedAt": "2025-12-30T10:13:23.358Z"
 }
