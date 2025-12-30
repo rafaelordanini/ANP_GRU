@@ -1772,23 +1772,25 @@ GASOLINA R$ ${gasolinaFormatted}
         }
 
         function isDataOutdated(periodEnd) {
-            // Os períodos da ANP vão de sábado a sexta-feira
-            // Os dados estão atualizados se periodEnd for a sexta-feira mais recente
+            // A ANP atualiza os dados toda sexta-feira para a semana anterior (sábado a sexta)
+            // Se hoje é sábado ou depois, já deveria haver novos dados disponíveis
             const today = new Date();
             const dayOfWeek = today.getDay(); // 0 = domingo, 1 = segunda, ..., 5 = sexta, 6 = sábado
 
-            // Calcular a última sexta-feira
-            // Dom(0)->2 dias atrás, Seg(1)->3, Ter(2)->4, Qua(3)->5, Qui(4)->6, Sex(5)->0 (hoje), Sáb(6)->1
+            // Calcula a última sexta-feira
             let daysToLastFriday;
             if (dayOfWeek === 5) {
-                // Hoje é sexta, a última sexta é hoje
+                // Hoje é sexta - dados de hoje podem estar disponíveis
                 daysToLastFriday = 0;
             } else if (dayOfWeek === 6) {
-                // Hoje é sábado, a última sexta foi ontem
+                // Sábado - sexta foi ontem
                 daysToLastFriday = 1;
             } else {
-                // Domingo a quinta: voltar para a sexta passada
-                // Dom(0)->2, Seg(1)->3, Ter(2)->4, Qua(3)->5, Qui(4)->6
+                // Domingo (0) a quinta (4)
+                // Domingo: 0 + 2 = 2 dias atrás
+                // Segunda: 1 + 2 = 3 dias atrás
+                // Terça: 2 + 2 = 4 dias atrás
+                // etc.
                 daysToLastFriday = dayOfWeek + 2;
             }
 
