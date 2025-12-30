@@ -154,6 +154,55 @@
             color: var(--danger);
         }
 
+        /* Tab Navigation */
+        .tab-nav {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 30px;
+            animation: fadeInDown 0.6s ease-out 0.1s both;
+        }
+
+        .tab-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow);
+        }
+
+        .tab-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+            border-color: transparent;
+            color: white;
+        }
+
+        .tab-btn.active i {
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
         .status-bar {
             display: flex;
             flex-wrap: wrap;
@@ -665,6 +714,363 @@
             text-decoration: none;
         }
 
+        /* Kilometragem Tab Styles */
+        .km-container {
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        .km-header {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .km-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .km-title i {
+            font-size: 2rem;
+            color: var(--accent);
+        }
+
+        .km-title h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .km-actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .km-update-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background: var(--bg-card);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .km-update-info i {
+            color: var(--accent);
+        }
+
+        .km-table-container {
+            background: var(--bg-card);
+            border-radius: 16px;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        .km-table-wrapper {
+            overflow-x: auto;
+        }
+
+        .km-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        .km-table th,
+        .km-table td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .km-table th {
+            background: linear-gradient(135deg, var(--accent-light), rgba(168, 85, 247, 0.1));
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+            position: sticky;
+            top: 0;
+        }
+
+        .dark .km-table th {
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(168, 85, 247, 0.15));
+        }
+
+        .km-table tbody tr:hover {
+            background: var(--accent-light);
+        }
+
+        .dark .km-table tbody tr:hover {
+            background: rgba(56, 189, 248, 0.1);
+        }
+
+        .km-table tbody tr.urgent {
+            background: rgba(239, 68, 68, 0.15);
+        }
+
+        .km-table tbody tr.urgent:hover {
+            background: rgba(239, 68, 68, 0.25);
+        }
+
+        .km-table .placa-cell {
+            font-family: 'Space Mono', monospace;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .km-table .km-cell {
+            font-family: 'Space Mono', monospace;
+            font-weight: 600;
+            color: var(--accent-dark);
+        }
+
+        .dark .km-table .km-cell {
+            color: var(--accent);
+        }
+
+        .km-table .revision-input {
+            width: 110px;
+            padding: 6px 10px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.85rem;
+            transition: all 0.2s ease;
+        }
+
+        .km-table .revision-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.2);
+        }
+
+        .km-table .revision-input.filled {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: var(--success);
+        }
+
+        .km-table .revision-input::-webkit-calendar-picker-indicator {
+            filter: invert(0.5);
+            cursor: pointer;
+        }
+
+        .dark .km-table .revision-input::-webkit-calendar-picker-indicator {
+            filter: invert(0.8);
+        }
+
+        .km-next-revision {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .km-next-revision.urgent {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--danger);
+        }
+
+        .km-next-revision.warning {
+            background: rgba(245, 158, 11, 0.15);
+            color: #d97706;
+        }
+
+        .km-next-revision.ok {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--success);
+        }
+
+        .km-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            padding: 16px;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .km-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .km-legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+        }
+
+        .km-legend-color.urgent {
+            background: rgba(239, 68, 68, 0.3);
+            border: 2px solid var(--danger);
+        }
+
+        .km-legend-color.warning {
+            background: rgba(245, 158, 11, 0.3);
+            border: 2px solid #f59e0b;
+        }
+
+        .km-empty-state {
+            padding: 60px 20px;
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        .km-empty-state i {
+            font-size: 4rem;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .km-empty-state p {
+            font-size: 1.1rem;
+        }
+
+        /* Password Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .modal-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            border-radius: 20px;
+            padding: 32px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: var(--shadow-lg);
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.show .modal-content {
+            transform: scale(1);
+        }
+
+        .modal-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 20px;
+        }
+
+        .modal-title i {
+            color: var(--accent);
+        }
+
+        .modal-input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 1rem;
+            margin-bottom: 16px;
+            transition: all 0.2s ease;
+        }
+
+        .modal-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .modal-input.error {
+            border-color: var(--danger);
+            animation: shake 0.5s ease;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            75% { transform: translateX(8px); }
+        }
+
+        .modal-error {
+            color: var(--danger);
+            font-size: 0.9rem;
+            margin-bottom: 16px;
+            display: none;
+        }
+
+        .modal-error.show {
+            display: block;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .modal-btn {
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+        }
+
+        .modal-btn.cancel {
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+
+        .modal-btn.cancel:hover {
+            background: var(--border);
+        }
+
+        .modal-btn.confirm {
+            background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+            color: white;
+        }
+
+        .modal-btn.confirm:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 14px rgba(14, 165, 233, 0.4);
+        }
+
         @media (max-width: 600px) {
             .container {
                 padding: 16px;
@@ -697,6 +1103,41 @@
                 flex-direction: column;
                 align-items: center;
             }
+
+            .tab-nav {
+                flex-direction: column;
+            }
+
+            .tab-btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .km-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .km-actions {
+                width: 100%;
+            }
+
+            .km-actions .update-btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .km-table th,
+            .km-table td {
+                padding: 10px 8px;
+                font-size: 0.8rem;
+            }
+
+            .km-table .revision-input {
+                width: 90px;
+                padding: 4px 6px;
+                font-size: 0.75rem;
+            }
         }
     </style>
 </head>
@@ -715,118 +1156,208 @@
             </div>
         </header>
 
-        <div class="status-bar">
-            <div class="status-item reference-week" id="referenceWeek" style="display: none;">
-                <i class="far fa-calendar-alt"></i>
-                <span>Semana: <strong id="referenceWeekText">--</strong></span>
-            </div>
-            <div class="status-item" id="lastUpdate">
-                <i class="far fa-clock"></i>
-                <span>Última consulta: <strong id="lastUpdateTime">--</strong></span>
-            </div>
-            <div class="status-item" id="nextUpdateItem">
-                <i class="fas fa-sync-alt"></i>
-                <span>Próxima: <strong class="next-update" id="nextUpdateTime">07:00</strong></span>
-            </div>
-            <div class="status-item live" id="liveStatus" style="display: none;">
-                <i class="fas fa-circle" id="liveStatusIcon"></i>
-                <span id="liveStatusText">Dados atualizados</span>
-            </div>
-        </div>
-
-        <div class="error-message" id="errorMessage">
-            <i class="fas fa-exclamation-triangle"></i>
-            <span id="errorText"></span>
-        </div>
-
-        <div class="warning-message" id="warningMessage">
-            <i class="fas fa-exclamation-circle"></i>
-            <span id="warningText"></span>
-        </div>
-
-        <div class="fuel-grid" id="fuelGrid">
-            <div class="fuel-card gasolina loading">
-                <div class="fuel-icon"><i class="fas fa-fire"></i></div>
-                <div class="fuel-name">Gasolina Comum</div>
-                <div class="fuel-price" id="priceGasolina">R$ --</div>
-                <div class="fuel-unit">por litro</div>
-            </div>
-
-            <div class="fuel-card etanol loading">
-                <div class="fuel-icon"><i class="fas fa-leaf"></i></div>
-                <div class="fuel-name">Etanol</div>
-                <div class="fuel-price" id="priceEtanol">R$ --</div>
-                <div class="fuel-unit">por litro</div>
-            </div>
-
-        </div>
-
-        <div class="update-section">
-            <button class="update-btn" id="updateBtn" onclick="fetchFuelPrices()">
-                <i class="fas fa-sync-alt"></i>
-                Atualizar Preços
+        <!-- Tab Navigation -->
+        <div class="tab-nav">
+            <button class="tab-btn active" data-tab="combustiveis" onclick="switchTab('combustiveis')">
+                <i class="fas fa-gas-pump"></i>
+                Combustíveis
+            </button>
+            <button class="tab-btn" data-tab="kilometragem" onclick="switchTab('kilometragem')">
+                <i class="fas fa-tachometer-alt"></i>
+                Kilometragem
             </button>
         </div>
 
-        <div class="info-section">
-            <div class="info-title">
-                <i class="fas fa-info-circle"></i>
-                Sobre os Dados
+        <!-- Combustíveis Tab -->
+        <div class="tab-content active" id="tab-combustiveis">
+            <div class="status-bar">
+                <div class="status-item reference-week" id="referenceWeek" style="display: none;">
+                    <i class="far fa-calendar-alt"></i>
+                    <span>Semana: <strong id="referenceWeekText">--</strong></span>
+                </div>
+                <div class="status-item" id="lastUpdate">
+                    <i class="far fa-clock"></i>
+                    <span>Última consulta: <strong id="lastUpdateTime">--</strong></span>
+                </div>
+                <div class="status-item" id="nextUpdateItem">
+                    <i class="fas fa-sync-alt"></i>
+                    <span>Próxima: <strong class="next-update" id="nextUpdateTime">07:00</strong></span>
+                </div>
+                <div class="status-item live" id="liveStatus" style="display: none;">
+                    <i class="fas fa-circle" id="liveStatusIcon"></i>
+                    <span id="liveStatusText">Dados atualizados</span>
+                </div>
             </div>
-            <div class="info-text">
-                Os preços exibidos são os <strong>preços médios de revenda</strong> praticados em Guarulhos,
-                obtidos da <a href="https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-revenda-e-de-distribuicao-combustiveis/serie-historica-do-levantamento-de-precos" target="_blank">
-                Série Histórica de Preços da ANP</a> (Agência Nacional do Petróleo, Gás Natural e Biocombustíveis).
-                <br><br>
-                <i class="far fa-calendar-alt"></i> Período dos dados: <span class="data-period" id="dataPeriod">Carregando...</span>
-                <br>
-                <a href="https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-revenda-e-de-distribuicao-combustiveis/serie-historica-do-levantamento-de-precos"
-                   target="_blank" class="download-link" id="downloadExcelLink">
-                    <i class="fas fa-download"></i>
-                    Baixar Planilha da ANP
+
+            <div class="error-message" id="errorMessage">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span id="errorText"></span>
+            </div>
+
+            <div class="warning-message" id="warningMessage">
+                <i class="fas fa-exclamation-circle"></i>
+                <span id="warningText"></span>
+            </div>
+
+            <div class="fuel-grid" id="fuelGrid">
+                <div class="fuel-card gasolina loading">
+                    <div class="fuel-icon"><i class="fas fa-fire"></i></div>
+                    <div class="fuel-name">Gasolina Comum</div>
+                    <div class="fuel-price" id="priceGasolina">R$ --</div>
+                    <div class="fuel-unit">por litro</div>
+                </div>
+
+                <div class="fuel-card etanol loading">
+                    <div class="fuel-icon"><i class="fas fa-leaf"></i></div>
+                    <div class="fuel-name">Etanol</div>
+                    <div class="fuel-price" id="priceEtanol">R$ --</div>
+                    <div class="fuel-unit">por litro</div>
+                </div>
+            </div>
+
+            <div class="update-section">
+                <button class="update-btn" id="updateBtn" onclick="fetchFuelPrices()">
+                    <i class="fas fa-sync-alt"></i>
+                    Atualizar Preços
+                </button>
+            </div>
+
+            <div class="info-section">
+                <div class="info-title">
+                    <i class="fas fa-info-circle"></i>
+                    Sobre os Dados
+                </div>
+                <div class="info-text">
+                    Os preços exibidos são os <strong>preços médios de revenda</strong> praticados em Guarulhos,
+                    obtidos da <a href="https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-revenda-e-de-distribuicao-combustiveis/serie-historica-do-levantamento-de-precos" target="_blank">
+                    Série Histórica de Preços da ANP</a> (Agência Nacional do Petróleo, Gás Natural e Biocombustíveis).
+                    <br><br>
+                    <i class="far fa-calendar-alt"></i> Período dos dados: <span class="data-period" id="dataPeriod">Carregando...</span>
+                    <br>
+                    <a href="https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-revenda-e-de-distribuicao-combustiveis/serie-historica-do-levantamento-de-precos"
+                       target="_blank" class="download-link" id="downloadExcelLink">
+                        <i class="fas fa-download"></i>
+                        Baixar Planilha da ANP
+                    </a>
+                </div>
+            </div>
+
+            <!-- Prime Report Section -->
+            <div class="prime-section">
+                <div class="info-title">
+                    <i class="fas fa-file-pdf"></i>
+                    Postos Credenciados - Prime Benefícios
+                </div>
+                <div class="info-text">
+                    Relatório atualizado automaticamente toda <strong>segunda-feira às 07:00</strong> com a lista de postos credenciados em Guarulhos.
+                </div>
+                <a href="/prime-report.pdf" target="_blank" class="prime-btn" id="primeBtn">
+                    <i class="fas fa-file-pdf"></i>
+                    Ver Relatório de Postos (PDF)
                 </a>
+                <div class="prime-update-info" id="primeUpdateInfo">
+                    <i class="far fa-clock"></i>
+                    <span id="primeUpdateText">Atualizado toda segunda-feira</span>
+                </div>
+            </div>
+
+            <!-- WhatsApp Section -->
+            <div class="whatsapp-section">
+                <div class="info-title">
+                    <i class="fab fa-whatsapp"></i>
+                    Compartilhar via WhatsApp
+                </div>
+                <div class="info-text">
+                    Envie os preços atualizados para um grupo ou contato no WhatsApp. A mensagem será montada automaticamente com os valores da semana atual.
+                </div>
+
+                <button class="whatsapp-btn" id="whatsappBtn" onclick="openWhatsApp()" disabled>
+                    <i class="fab fa-whatsapp"></i>
+                    Enviar pelo WhatsApp
+                </button>
             </div>
         </div>
 
-        <!-- Prime Report Section -->
-        <div class="prime-section">
-            <div class="info-title">
-                <i class="fas fa-file-pdf"></i>
-                Postos Credenciados - Prime Benefícios
-            </div>
-            <div class="info-text">
-                Relatório atualizado automaticamente toda <strong>segunda-feira às 07:00</strong> com a lista de postos credenciados em Guarulhos.
-            </div>
-            <a href="/prime-report.pdf" target="_blank" class="prime-btn" id="primeBtn">
-                <i class="fas fa-file-pdf"></i>
-                Ver Relatório de Postos (PDF)
-            </a>
-            <div class="prime-update-info" id="primeUpdateInfo">
-                <i class="far fa-clock"></i>
-                <span id="primeUpdateText">Atualizado toda segunda-feira</span>
-            </div>
-        </div>
+        <!-- Kilometragem Tab -->
+        <div class="tab-content" id="tab-kilometragem">
+            <div class="km-container">
+                <div class="km-header">
+                    <div class="km-title">
+                        <i class="fas fa-tachometer-alt"></i>
+                        <h2>Controle de Kilometragem</h2>
+                    </div>
+                    <div class="km-actions">
+                        <div class="km-update-info" id="kmUpdateInfo">
+                            <i class="far fa-clock"></i>
+                            <span id="kmUpdateText">Última atualização: --</span>
+                        </div>
+                        <button class="update-btn" id="kmUpdateBtn" onclick="refreshVehicles()">
+                            <i class="fas fa-sync-alt"></i>
+                            Atualizar Dados
+                        </button>
+                    </div>
+                </div>
 
-        <!-- WhatsApp Section -->
-        <div class="whatsapp-section">
-            <div class="info-title">
-                <i class="fab fa-whatsapp"></i>
-                Compartilhar via WhatsApp
+                <div class="km-table-container">
+                    <div class="km-table-wrapper">
+                        <table class="km-table">
+                            <thead>
+                                <tr>
+                                    <th>Placa</th>
+                                    <th>KM Atual</th>
+                                    <th>Próx. Revisão</th>
+                                    <th>10.000 km</th>
+                                    <th>20.000 km</th>
+                                    <th>30.000 km</th>
+                                    <th>40.000 km</th>
+                                    <th>50.000 km</th>
+                                    <th>60.000 km</th>
+                                </tr>
+                            </thead>
+                            <tbody id="kmTableBody">
+                                <tr>
+                                    <td colspan="9" class="km-empty-state">
+                                        <i class="fas fa-car"></i>
+                                        <p>Carregando veículos...</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="km-legend">
+                        <div class="km-legend-item">
+                            <div class="km-legend-color urgent"></div>
+                            <span>Menos de 1.000 km para revisão (sem data preenchida)</span>
+                        </div>
+                        <div class="km-legend-item">
+                            <div class="km-legend-color warning"></div>
+                            <span>Menos de 2.000 km para revisão</span>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="info-text">
-                Envie os preços atualizados para um grupo ou contato no WhatsApp. A mensagem será montada automaticamente com os valores da semana atual.
-            </div>
-
-            <button class="whatsapp-btn" id="whatsappBtn" onclick="openWhatsApp()" disabled>
-                <i class="fab fa-whatsapp"></i>
-                Enviar pelo WhatsApp
-            </button>
         </div>
 
         <footer>
             Dados fornecidos pela <a href="https://www.gov.br/anp" target="_blank">ANP</a> •
             Atualização automática diária às 07:00
         </footer>
+    </div>
+
+    <!-- Password Modal -->
+    <div class="modal-overlay" id="passwordModal">
+        <div class="modal-content">
+            <div class="modal-title">
+                <i class="fas fa-lock"></i>
+                Acesso Restrito
+            </div>
+            <input type="password" class="modal-input" id="passwordInput" placeholder="Digite a senha" autocomplete="off">
+            <div class="modal-error" id="passwordError">Senha incorreta. Tente novamente.</div>
+            <div class="modal-buttons">
+                <button class="modal-btn cancel" onclick="closePasswordModal()">Cancelar</button>
+                <button class="modal-btn confirm" onclick="checkPassword()">Acessar</button>
+            </div>
+        </div>
     </div>
 
 
@@ -844,10 +1375,292 @@
         });
 
         const PRICES_URL = '/prices.json';
+        const VEHICLES_URL = '/vehicles.json';
+        const REVISIONS_KEY = 'vehicleRevisions';
+        const KM_AUTH_KEY = 'kmAuthTimestamp';
+        const KM_PASSWORD = 'transportescmg';
+        const AUTH_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
         let isLoading = false;
         let lastCheckHour = -1;
         let currentPrices = { gasolinaComum: null, etanol: null };
+        let vehiclesData = [];
+        let revisions = {};
+
+        // Tab switching
+        function switchTab(tabName) {
+            // Check if trying to access kilometragem tab
+            if (tabName === 'kilometragem' && !isKmAuthenticated()) {
+                showPasswordModal();
+                return;
+            }
+
+            // Update tab buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.tab === tabName) {
+                    btn.classList.add('active');
+                }
+            });
+
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById('tab-' + tabName).classList.add('active');
+
+            // Load vehicles data when switching to kilometragem
+            if (tabName === 'kilometragem') {
+                loadVehicles();
+            }
+        }
+
+        // Authentication
+        function isKmAuthenticated() {
+            const authTimestamp = getStoredValue(KM_AUTH_KEY);
+            if (!authTimestamp) return false;
+            const elapsed = Date.now() - parseInt(authTimestamp);
+            return elapsed < AUTH_DURATION;
+        }
+
+        function setKmAuthenticated() {
+            setStoredValue(KM_AUTH_KEY, Date.now().toString());
+        }
+
+        function showPasswordModal() {
+            document.getElementById('passwordModal').classList.add('show');
+            document.getElementById('passwordInput').value = '';
+            document.getElementById('passwordError').classList.remove('show');
+            document.getElementById('passwordInput').classList.remove('error');
+            setTimeout(() => document.getElementById('passwordInput').focus(), 100);
+        }
+
+        function closePasswordModal() {
+            document.getElementById('passwordModal').classList.remove('show');
+        }
+
+        function checkPassword() {
+            const input = document.getElementById('passwordInput');
+            const error = document.getElementById('passwordError');
+
+            if (input.value === KM_PASSWORD) {
+                setKmAuthenticated();
+                closePasswordModal();
+                switchTab('kilometragem');
+            } else {
+                input.classList.add('error');
+                error.classList.add('show');
+                setTimeout(() => input.classList.remove('error'), 500);
+            }
+        }
+
+        // Handle Enter key on password input
+        document.getElementById('passwordInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                checkPassword();
+            }
+        });
+
+        // Storage functions using cookies (localStorage not available in iframe)
+        function getStoredValue(key) {
+            const match = document.cookie.match(new RegExp('(^| )' + key + '=([^;]+)'));
+            return match ? decodeURIComponent(match[2]) : null;
+        }
+
+        function setStoredValue(key, value) {
+            const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toUTCString();
+            document.cookie = key + '=' + encodeURIComponent(value) + '; expires=' + expires + '; path=/';
+        }
+
+        // Revisions storage
+        function loadRevisions() {
+            const stored = getStoredValue(REVISIONS_KEY);
+            if (stored) {
+                try {
+                    revisions = JSON.parse(stored);
+                } catch (e) {
+                    revisions = {};
+                }
+            }
+        }
+
+        function saveRevisions() {
+            setStoredValue(REVISIONS_KEY, JSON.stringify(revisions));
+        }
+
+        function setRevision(placa, milestone, date) {
+            if (!revisions[placa]) {
+                revisions[placa] = {};
+            }
+            if (date) {
+                revisions[placa][milestone] = date;
+            } else {
+                delete revisions[placa][milestone];
+            }
+            saveRevisions();
+            renderVehiclesTable();
+        }
+
+        // Calculate next revision milestone
+        function getNextRevisionMilestone(km) {
+            const milestones = [10000, 20000, 30000, 40000, 50000, 60000];
+            for (const m of milestones) {
+                if (km < m) {
+                    return m;
+                }
+            }
+            return null; // Beyond 60k
+        }
+
+        // Check if revision is filled
+        function isRevisionFilled(placa, milestone) {
+            return revisions[placa] && revisions[placa][milestone];
+        }
+
+        // Render vehicles table
+        function renderVehiclesTable() {
+            const tbody = document.getElementById('kmTableBody');
+
+            if (vehiclesData.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="9" class="km-empty-state">
+                            <i class="fas fa-car"></i>
+                            <p>Nenhum veículo encontrado. Execute a atualização ou aguarde a atualização automática.</p>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            // Calculate urgency for sorting
+            const vehiclesWithUrgency = vehiclesData.map(v => {
+                const nextMilestone = getNextRevisionMilestone(v.km);
+                const kmToNext = nextMilestone ? nextMilestone - v.km : Infinity;
+                const isFilled = nextMilestone ? isRevisionFilled(v.placa, nextMilestone) : true;
+                const isUrgent = kmToNext < 1000 && !isFilled;
+                const isWarning = kmToNext < 2000 && !isFilled;
+
+                return {
+                    ...v,
+                    nextMilestone,
+                    kmToNext,
+                    isFilled,
+                    isUrgent,
+                    isWarning
+                };
+            });
+
+            // Sort: urgent first, then by km remaining
+            vehiclesWithUrgency.sort((a, b) => {
+                if (a.isUrgent && !b.isUrgent) return -1;
+                if (!a.isUrgent && b.isUrgent) return 1;
+                if (a.isWarning && !b.isWarning) return -1;
+                if (!a.isWarning && b.isWarning) return 1;
+                return a.kmToNext - b.kmToNext;
+            });
+
+            const milestones = [10000, 20000, 30000, 40000, 50000, 60000];
+
+            tbody.innerHTML = vehiclesWithUrgency.map(v => {
+                const rowClass = v.isUrgent ? 'urgent' : '';
+
+                let nextRevisionBadge = '';
+                if (v.nextMilestone) {
+                    const badgeClass = v.isUrgent ? 'urgent' : (v.isWarning ? 'warning' : 'ok');
+                    const icon = v.isUrgent ? 'fa-exclamation-triangle' : (v.isWarning ? 'fa-exclamation-circle' : 'fa-check-circle');
+                    nextRevisionBadge = `
+                        <span class="km-next-revision ${badgeClass}">
+                            <i class="fas ${icon}"></i>
+                            ${v.kmToNext.toLocaleString('pt-BR')} km
+                        </span>
+                    `;
+                } else {
+                    nextRevisionBadge = '<span class="km-next-revision ok"><i class="fas fa-check-circle"></i> OK</span>';
+                }
+
+                const revisionCells = milestones.map(m => {
+                    const revDate = revisions[v.placa] && revisions[v.placa][m] ? revisions[v.placa][m] : '';
+                    const filledClass = revDate ? 'filled' : '';
+                    return `
+                        <td>
+                            <input type="date"
+                                   class="revision-input ${filledClass}"
+                                   value="${revDate}"
+                                   onchange="setRevision('${v.placa}', ${m}, this.value)"
+                                   data-placa="${v.placa}"
+                                   data-milestone="${m}">
+                        </td>
+                    `;
+                }).join('');
+
+                return `
+                    <tr class="${rowClass}">
+                        <td class="placa-cell">${v.placa}</td>
+                        <td class="km-cell">${v.km.toLocaleString('pt-BR')}</td>
+                        <td>${nextRevisionBadge}</td>
+                        ${revisionCells}
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Load vehicles from JSON
+        async function loadVehicles() {
+            loadRevisions();
+
+            try {
+                const response = await fetch(VEHICLES_URL + '?t=' + Date.now());
+                if (!response.ok) {
+                    throw new Error('Erro ao carregar veículos');
+                }
+
+                const data = await response.json();
+
+                if (data.success && data.vehicles) {
+                    vehiclesData = data.vehicles;
+
+                    // Update timestamp
+                    if (data.updatedAt) {
+                        const date = new Date(data.updatedAt);
+                        document.getElementById('kmUpdateText').textContent =
+                            'Última atualização: ' + date.toLocaleDateString('pt-BR', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            });
+                    }
+
+                    renderVehiclesTable();
+                } else {
+                    throw new Error('Dados de veículos não disponíveis');
+                }
+            } catch (error) {
+                console.error('Error loading vehicles:', error);
+                document.getElementById('kmTableBody').innerHTML = `
+                    <tr>
+                        <td colspan="9" class="km-empty-state">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <p>Erro ao carregar dados. Tente atualizar ou aguarde a atualização automática.</p>
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        // Refresh vehicles button
+        function refreshVehicles() {
+            const btn = document.getElementById('kmUpdateBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Atualizando...';
+
+            loadVehicles().finally(() => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-sync-alt"></i> Atualizar Dados';
+            });
+        }
 
         // WhatsApp Functions
         function getWeekDates() {
