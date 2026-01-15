@@ -58,8 +58,6 @@ jobs:
 
           function excelDateToJS(serial) {
             if (serial instanceof Date) {
-              // xlsx com cellDates:true pode ter problema de timezone
-              // Adiciona 1 dia para compensar
               const corrected = new Date(serial.getTime() + 24 * 60 * 60 * 1000);
               return corrected;
             }
@@ -74,7 +72,6 @@ jobs:
               }
               return new Date(serial);
             }
-            // Excel serial date - adiciona 1 para compensar
             const utcDays = serial - 25569 + 1;
             return new Date(Date.UTC(1970, 0, utcDays, 12, 0, 0));
           }
@@ -93,64 +90,67 @@ jobs:
             console.log('Fetching ANP page...');
             const html = (await fetchUrl(ANP_PAGE_URL)).toString();
   
-            const allXlsxPattern = /href="([^"]*municipio[^"]*\.xlsx)"/gi;
+            // Updated regex to match both "municipio" and "municipios" variations
+            const allXlsxPattern = /href="([^"]*municip[^"]*\.xlsx)"/gi;
             let match;
             console.log('All municipality xlsx links found:');
             while ((match = allXlsxPattern.exec(html)) !== null) {
               console.log('  ' + match[1]);
-             }
-  
-              const matches = [];
-  
-              const rangePattern = /semanal-municipio-(\d{4})-(\d{4})\.xlsx/gi;
-              while ((match = rangePattern.exec(html)) !== null) {
-                  matches.push({
-                    filename: match[0],
-                    startYear: parseInt(match[1]),
-                    endYear: parseInt(match[2])
-                  });
-                }
-  
-                const singlePattern = /semanal-municipio-(\d{4})\.xlsx/gi;
-                while ((match = singlePattern.exec(html)) !== null) {
-                  const isDuplicate = matches.some(function(m) {
-                  return m.filename === match[0];
-                });
-                if (!isDuplicate) {
-                  matches.push({
-                    filename: match[0],
-                    startYear: parseInt(match[1]),
-                    endYear: parseInt(match[1])
-                    });
-                  }
-                }
-  
-          console.log('Parsed matches:');
-              for (let i = 0; i < matches.length; i++) {
-              console.log('  ' + matches[i].filename + ' (endYear: ' + matches[i].endYear + ')');
-              }
-  
-              if (matches.length === 0) {
-                throw new Error('No municipality Excel files found');
-              }
-  
-              const seen = {};
-              const unique = [];
-              for (let i = 0; i < matches.length; i++) {
-                if (!seen[matches[i].filename]) {
-                  seen[matches[i].filename] = true;
-                  unique.push(matches[i]);
-                }
-          }
-  
-          unique.sort(function(a, b) {
-            if (b.endYear !== a.endYear) {
-            return b.endYear - a.endYear;
             }
-          return b.startYear - a.startYear;
-          });
   
-          console.log('Sorted unique matches:');
+            const matches = [];
+  
+            // Pattern 1: Range format like "semanal-municipio-2024-2025.xlsx" or "semanal-municipios-2022_a_2023.xlsx"
+            const rangePattern = /semanal-municip[a-z]*-(\d{4})[-_](?:a[-_])?(\d{4})\.xlsx/gi;
+            while ((match = rangePattern.exec(html)) !== null) {
+              matches.push({
+                filename: match[0],
+                startYear: parseInt(match[1]),
+                endYear: parseInt(match[2])
+              });
+            }
+  
+            // Pattern 2: Single year format like "semanal-municipios-2026.xlsx"
+            const singlePattern = /semanal-municip[a-z]*-(\d{4})\.xlsx/gi;
+            while ((match = singlePattern.exec(html)) !== null) {
+              const isDuplicate = matches.some(function(m) {
+                return m.filename === match[0];
+              });
+              if (!isDuplicate) {
+                matches.push({
+                  filename: match[0],
+                  startYear: parseInt(match[1]),
+                  endYear: parseInt(match[1])
+                });
+              }
+            }
+  
+            console.log('Parsed matches:');
+            for (let i = 0; i < matches.length; i++) {
+              console.log('  ' + matches[i].filename + ' (endYear: ' + matches[i].endYear + ')');
+            }
+  
+            if (matches.length === 0) {
+              throw new Error('No municipality Excel files found');
+            }
+  
+            const seen = {};
+            const unique = [];
+            for (let i = 0; i < matches.length; i++) {
+              if (!seen[matches[i].filename]) {
+                seen[matches[i].filename] = true;
+                unique.push(matches[i]);
+              }
+            }
+  
+            unique.sort(function(a, b) {
+              if (b.endYear !== a.endYear) {
+                return b.endYear - a.endYear;
+              }
+              return b.startYear - a.startYear;
+            });
+  
+            console.log('Sorted unique matches:');
             for (let i = 0; i < unique.length; i++) {
               console.log('  ' + unique[i].filename);
             }
