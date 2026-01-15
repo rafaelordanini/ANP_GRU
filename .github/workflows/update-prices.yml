@@ -90,11 +90,19 @@ jobs:
           }
 
           async function findLatestExcelUrl() {
-              console.log('Fetching ANP page...');
-              const html = (await fetchUrl(ANP_PAGE_URL)).toString();
+            console.log('Fetching ANP page...');
+            const html = (await fetchUrl(ANP_PAGE_URL)).toString();
+  
+            const allXlsxPattern = /href="([^"]*municipio[^"]*\.xlsx)"/gi;
+            let match;
+            console.log('All municipality xlsx links found:');
+            while ((match = allXlsxPattern.exec(html)) !== null) {
+              console.log('  ' + match[1]);
+             }
+  
               const matches = [];
+  
               const rangePattern = /semanal-municipio-(\d{4})-(\d{4})\.xlsx/gi;
-              let match;
               while ((match = rangePattern.exec(html)) !== null) {
                   matches.push({
                     filename: match[0],
@@ -102,48 +110,56 @@ jobs:
                     endYear: parseInt(match[2])
                   });
                 }
-              const singlePattern = /semanal-municipio-(\d{4})\.xlsx/gi;
+  
+                const singlePattern = /semanal-municipio-(\d{4})\.xlsx/gi;
                 while ((match = singlePattern.exec(html)) !== null) {
-              const isDuplicate = matches.some(function(m) {
-                    return m.filename === match[0];
+                  const isDuplicate = matches.some(function(m) {
+                  return m.filename === match[0];
                 });
-                  if (!isDuplicate) {
-                      matches.push({
-                        filename: match[0],
-                          startYear: parseInt(match[1]),
-                          endYear: parseInt(match[1])
-                        });
-                    }
+                if (!isDuplicate) {
+                  matches.push({
+                    filename: match[0],
+                    startYear: parseInt(match[1]),
+                    endYear: parseInt(match[1])
+                    });
+                  }
                 }
+  
+          console.log('Parsed matches:');
+              for (let i = 0; i < matches.length; i++) {
+              console.log('  ' + matches[i].filename + ' (endYear: ' + matches[i].endYear + ')');
+              }
   
               if (matches.length === 0) {
-                  throw new Error('No municipality Excel files found');
-                }
-  
-
-            const seen = {};
-            const unique = [];
-            for (let i = 0; i < matches.length; i++) {
-                if (!seen[matches[i].filename]) {
-                    seen[matches[i].filename] = true;
-                    unique.push(matches[i]);
-                }
-            }
-  
-
-            unique.sort(function(a, b) {
-              if (b.endYear !== a.endYear) {
-                  return b.endYear - a.endYear;
+                throw new Error('No municipality Excel files found');
               }
-            return b.startYear - a.startYear;
-            });
+  
+              const seen = {};
+              const unique = [];
+              for (let i = 0; i < matches.length; i++) {
+                if (!seen[matches[i].filename]) {
+                  seen[matches[i].filename] = true;
+                  unique.push(matches[i]);
+                }
+          }
+  
+          unique.sort(function(a, b) {
+            if (b.endYear !== a.endYear) {
+            return b.endYear - a.endYear;
+            }
+          return b.startYear - a.startYear;
+          });
+  
+          console.log('Sorted unique matches:');
+            for (let i = 0; i < unique.length; i++) {
+              console.log('  ' + unique[i].filename);
+            }
   
             const latest = unique[0];
             const baseUrl = 'https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-revenda-e-de-distribuicao-combustiveis/shlp/semanal/';
             const url = baseUrl + latest.filename;
-  
-            console.log('Found files:', unique.map(function(m) { return m.filename; }).join(', '));
-            console.log('Latest file:', latest.filename);
+            
+            console.log('Selected: ' + latest.filename);
             return url;
           }
           
