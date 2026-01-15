@@ -90,50 +90,63 @@ jobs:
           }
 
           async function findLatestExcelUrl() {
-  console.log('Fetching ANP page...');
-  const html = (await fetchUrl(ANP_PAGE_URL)).toString();
-
-  const matches = [];
+              console.log('Fetching ANP page...');
+              const html = (await fetchUrl(ANP_PAGE_URL)).toString();
+              const matches = [];
+              const rangePattern = /semanal-municipio-(\d{4})-(\d{4})\.xlsx/gi;
+              let match;
+              while ((match = rangePattern.exec(html)) !== null) {
+                  matches.push({
+                    filename: match[0],
+                    startYear: parseInt(match[1]),
+                    endYear: parseInt(match[2])
+                  });
+                }
+              const singlePattern = /semanal-municipio-(\d{4})\.xlsx/gi;
+                while ((match = singlePattern.exec(html)) !== null) {
+              const isDuplicate = matches.some(function(m) {
+                    return m.filename === match[0];
+                });
+                  if (!isDuplicate) {
+                      matches.push({
+                        filename: match[0],
+                          startYear: parseInt(match[1]),
+                          endYear: parseInt(match[1])
+                        });
+                    }
+                }
   
-  // Pattern for files with year range (e.g., 2024-2025)
-  const rangePattern = /semanal-municipio-(\d{4})-(\d{4})\.xlsx/gi;
-  let match;
-  while ((match = rangePattern.exec(html)) !== null) {
-    matches.push({
-      filename: match[0],
-      startYear: parseInt(match[1]),
-      endYear: parseInt(match[2])
-    });
-  }
+              if (matches.length === 0) {
+                  throw new Error('No municipality Excel files found');
+                }
+  
 
-  // Pattern for files with single year (e.g., 2026)
-  const singlePattern = /semanal-municipio-(\d{4})\.xlsx/gi;
-  while ((match = singlePattern.exec(html)) !== null) {
-    // Avoid matching files already captured by range pattern
-    if (!matches.some(m => m.filename === match[0])) {
-      matches.push({
-        filename: match[0],
-        startYear: parseInt(match[1]),
-        endYear: parseInt(match[1]) // Same year for start and end
-      });
-    }
-  }
+            const seen = {};
+            const unique = [];
+            for (let i = 0; i < matches.length; i++) {
+                if (!seen[matches[i].filename]) {
+                    seen[matches[i].filename] = true;
+                    unique.push(matches[i]);
+                }
+            }
+  
 
-  if (matches.length === 0) {
-    throw new Error('No municipality Excel files found');
-  }
-
-  // Remove duplicates and sort by end year (descending), then start year (descending)
-  const unique = [...new Map(matches.map(m => [m.filename, m])).values()];
-  unique.sort((a, b) => b.endYear - a.endYear || b.startYear - a.startYear);
-
-  const latest = unique[0];
-  const url = `https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-revenda-e-de-distribuicao-combustiveis/shlp/semanal/${latest.filename}`;
-
-  console.log('Latest file:', latest.filename);
-  return url;
-}
-
+            unique.sort(function(a, b) {
+              if (b.endYear !== a.endYear) {
+                  return b.endYear - a.endYear;
+              }
+            return b.startYear - a.startYear;
+            });
+  
+            const latest = unique[0];
+            const baseUrl = 'https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-revenda-e-de-distribuicao-combustiveis/shlp/semanal/';
+            const url = baseUrl + latest.filename;
+  
+            console.log('Found files:', unique.map(function(m) { return m.filename; }).join(', '));
+            console.log('Latest file:', latest.filename);
+            return url;
+          }
+          
           async function main() {
             try {
               const excelUrl = await findLatestExcelUrl();
