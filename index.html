@@ -1772,39 +1772,40 @@ GASOLINA R$ ${gasolinaFormatted}
         }
 
         function isDataOutdated(periodEnd) {
-            // A ANP atualiza os dados toda sexta-feira para a semana anterior (sábado a sexta)
-            // Se hoje é sábado ou depois, já deveria haver novos dados disponíveis
-            const today = new Date();
-            const dayOfWeek = today.getDay(); // 0 = domingo, 1 = segunda, ..., 5 = sexta, 6 = sábado
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0 = domingo, 1 = segunda, ..., 6 = sábado
 
-            // Calcula a última sexta-feira
-            let daysToLastFriday;
-            if (dayOfWeek === 5) {
-                // Hoje é sexta - dados de hoje podem estar disponíveis
-                daysToLastFriday = 0;
-            } else if (dayOfWeek === 6) {
-                // Sábado - sexta foi ontem
-                daysToLastFriday = 1;
-            } else {
-                // Domingo (0) a quinta (4)
-                // Domingo: 0 + 2 = 2 dias atrás
-                // Segunda: 1 + 2 = 3 dias atrás
-                // Terça: 2 + 2 = 4 dias atrás
-                // etc.
-                daysToLastFriday = dayOfWeek + 2;
-            }
+    // Calcula a última sexta-feira (data esperada do último periodEnd)
+    let daysToLastFriday;
+    if (dayOfWeek === 0) {
+        // Domingo - sexta foi há 2 dias
+        daysToLastFriday = 2;
+    } else if (dayOfWeek === 6) {
+        // Sábado - sexta foi ontem
+        daysToLastFriday = 1;
+    } else {
+        // Segunda (1) a sexta (5) - sexta passada
+        daysToLastFriday = dayOfWeek + 2;
+    }
 
-            const lastFriday = new Date(today);
-            lastFriday.setDate(today.getDate() - daysToLastFriday);
-            lastFriday.setHours(0, 0, 0, 0);
+    const lastFriday = new Date(today);
+    lastFriday.setDate(today.getDate() - daysToLastFriday);
+    lastFriday.setHours(0, 0, 0, 0);
 
-            // Data final dos dados
-            const endDate = new Date(periodEnd);
-            endDate.setHours(0, 0, 0, 0);
+    // Parse da data no fuso horário local
+    const [year, month, day] = periodEnd.split('-').map(Number);
+    const endDate = new Date(year, month - 1, day);
+    endDate.setHours(0, 0, 0, 0);
 
-            // Se a data final é anterior à última sexta-feira, os dados estão desatualizados
-            return endDate < lastFriday;
-        }
+    // Só considera desatualizado a partir de segunda-feira
+    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+        // Segunda a sexta: verifica se periodEnd é anterior à última sexta
+        return endDate < lastFriday;
+    }
+
+    // Sábado e domingo: não considera desatualizado (ANP ainda pode atualizar)
+    return false;
+}
 
         function showWarning(message) {
             const warningElement = document.getElementById('warningMessage');
