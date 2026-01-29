@@ -14,419 +14,146 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install dependencies
-        run: npm install puppeteer xlsx
-
-      - name: Download Vehicles XLS
+      - name: Fetch vehicles from Prime API
         env:
-          PRIME_EMPRESA: ${{ secrets.PRIME_EMPRESA }}
-          PRIME_USUARIO: ${{ secrets.PRIME_USUARIO }}
-          PRIME_SENHA: ${{ secrets.PRIME_SENHA }}
+          PRIME_CODIGO: ${{ secrets.PRIME_CODIGO }}
+          PRIME_KEY: ${{ secrets.PRIME_KEY }}
         run: |
+          # Validate credentials
+          if [ -z "$PRIME_CODIGO" ] || [ -z "$PRIME_KEY" ]; then
+            echo "Error: PRIME_CODIGO or PRIME_KEY secrets are not set"
+            exit 1
+          fi
+
+          echo "Fetching data from Prime API..."
+
+          # Call the API to get all fueling data (status=1 for active)
+          API_URL="https://ws.sisatec.com.br/api/abastecimento/${PRIME_CODIGO}/${PRIME_KEY}/1"
+
+          echo "API URL: https://ws.sisatec.com.br/api/abastecimento/${PRIME_CODIGO}/****/1"
+
+          # Fetch data from API
+          HTTP_RESPONSE=$(curl -s -w "\n%{http_code}" "$API_URL")
+          HTTP_CODE=$(echo "$HTTP_RESPONSE" | tail -n1)
+          RESPONSE_BODY=$(echo "$HTTP_RESPONSE" | sed '$d')
+
+          echo "HTTP Status: $HTTP_CODE"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Error: API returned status $HTTP_CODE"
+            echo "Response: $RESPONSE_BODY"
+            exit 1
+          fi
+
+          # Check for API error message
+          if echo "$RESPONSE_BODY" | grep -q '"Message":"nao autorizado"'; then
+            echo "Error: API authentication failed - check PRIME_CODIGO and PRIME_KEY"
+            exit 1
+          fi
+
+          # Save raw response for debugging
+          echo "$RESPONSE_BODY" > api_response.json
+          echo "API response saved to api_response.json"
+
+          # Process the response with Node.js to extract unique vehicles with latest km
           node << 'EOF'
-          const puppeteer = require('puppeteer');
-          const XLSX = require('xlsx');
           const fs = require('fs');
-          const path = require('path');
 
-          const PRIME_EMPRESA = process.env.PRIME_EMPRESA;
-          const PRIME_USUARIO = process.env.PRIME_USUARIO;
-          const PRIME_SENHA = process.env.PRIME_SENHA;
+          try {
+            const data = JSON.parse(fs.readFileSync('api_response.json', 'utf8'));
 
-          if (!PRIME_EMPRESA || !PRIME_USUARIO || !PRIME_SENHA) {
-            console.error('Missing credentials.');
-            process.exit(1);
-          }
-
-          async function sleep(ms) {
-            return new Promise(resolve => setTimeout(resolve, ms));
-          }
-
-          async function main() {
-            console.log('Starting browser...');
-            const browser = await puppeteer.launch({
-              headless: 'new',
-              args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-            });
-
-            const page = await browser.newPage();
-            await page.setViewport({ width: 1920, height: 1080 });
-
-            const downloadPath = path.resolve('./downloads');
-            fs.mkdirSync(downloadPath, { recursive: true });
-
-            const client = await page.createCDPSession();
-            await client.send('Page.setDownloadBehavior', {
-              behavior: 'allow',
-              downloadPath: downloadPath
-            });
-
-            try {
-              // Step 1: Login
-              console.log('Step 1: Navigating to login page...');
-              await page.goto('https://primebeneficios.com.br/Intranet/Frota', {
-                waitUntil: 'networkidle2',
-                timeout: 60000
-              });
-              await sleep(2000);
-
-              // Step 2: Fill form
-              console.log('Step 2: Filling login form...');
-              await page.waitForSelector('#cliente');
-              await page.type('#cliente', PRIME_EMPRESA, { delay: 30 });
-              await page.type('#login', PRIME_USUARIO, { delay: 30 });
-              await page.type('#pass', PRIME_SENHA, { delay: 30 });
-
-              // Step 3: Submit login
-              console.log('Step 3: Submitting login...');
-              await Promise.all([
-                page.click('#submit-form'),
-                page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 60000 }).catch(() => {})
-              ]);
-              await sleep(5000);
-              console.log('URL after login:', page.url());
-              await page.screenshot({ path: 'step3-after-login.png', fullPage: true });
-
-              // Step 4: Close the COMUNICADO modal by clicking "Próximo"
-              console.log('Step 4: Looking for COMUNICADO modal...');
-              await sleep(2000);
-
-              // Try to close the modal
-              const modalClosed = await page.evaluate(() => {
-                // Look for "Próximo" button
-                const buttons = document.querySelectorAll('button, input[type="button"], a');
-                for (const btn of buttons) {
-                  const text = btn.textContent ? btn.textContent.trim() : '';
-                  const value = btn.value ? btn.value.trim() : '';
-                  if (text === 'Próximo' || value === 'Próximo' || text === 'Fechar' || text === 'OK') {
-                    btn.click();
-                    return { found: true, text: text || value };
-                  }
-                }
-
-                // Try clicking modal close button (X)
-                const closeButtons = document.querySelectorAll('.close, .modal-close, [data-dismiss="modal"]');
-                if (closeButtons.length > 0) {
-                  closeButtons[0].click();
-                  return { found: true, method: 'close button' };
-                }
-
-                // Try pressing Escape
-                document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', keyCode: 27 }));
-
-                return { found: false };
-              });
-              console.log('Modal close result:', JSON.stringify(modalClosed));
-              await sleep(2000);
-
-              // Try multiple times to close modals
-              for (let i = 0; i < 5; i++) {
-                const hasModal = await page.evaluate(() => {
-                  const modals = document.querySelectorAll('.modal, .popup, [role="dialog"]');
-                  for (const modal of modals) {
-                    const style = window.getComputedStyle(modal);
-                    if (style.display !== 'none' && style.visibility !== 'hidden') {
-                      // Find and click close button
-                      const btns = modal.querySelectorAll('button, a');
-                      for (const btn of btns) {
-                        const text = btn.textContent ? btn.textContent.trim() : '';
-                        if (text.includes('Próximo') || text.includes('Fechar') || text.includes('OK') || text.includes('×')) {
-                          btn.click();
-                          return { closed: true, text };
-                        }
-                      }
-                    }
-                  }
-                  return { closed: false };
-                });
-                console.log(`Modal check ${i+1}:`, JSON.stringify(hasModal));
-                if (!hasModal.closed) break;
-                await sleep(1000);
+            // Handle both array and object with abastecimentos property
+            let abastecimentos = [];
+            if (Array.isArray(data)) {
+              abastecimentos = data;
+            } else if (data.abastecimentos && Array.isArray(data.abastecimentos)) {
+              abastecimentos = data.abastecimentos;
+            } else {
+              console.log('Unexpected API response format:', Object.keys(data));
+              // Try to use the data directly if it has the expected fields
+              if (data.placa && data.kmAtual !== undefined) {
+                abastecimentos = [data];
               }
-
-              await page.screenshot({ path: 'step4-after-modal.png', fullPage: true });
-
-              // Step 5: Find and click on CONSULTA menu
-              console.log('Step 5: Looking for CONSULTA menu...');
-
-              const consultaClicked = await page.evaluate(() => {
-                // Look for menu items containing "CONSULTA"
-                const allElements = document.querySelectorAll('a, li, span, div');
-                for (const el of allElements) {
-                  const text = el.textContent ? el.textContent.trim().toUpperCase() : '';
-                  if (text === 'CONSULTA' || text === 'CONSULTAS') {
-                    el.click();
-                    return { found: true, text: el.textContent };
-                  }
-                }
-
-                // Try looking for expandable menu with CONSULTA
-                const menuHeaders = document.querySelectorAll('[data-toggle="collapse"], .accordion-header, .menu-header');
-                for (const header of menuHeaders) {
-                  if (header.textContent && header.textContent.toUpperCase().includes('CONSULTA')) {
-                    header.click();
-                    return { found: true, type: 'accordion', text: header.textContent };
-                  }
-                }
-
-                return { found: false };
-              });
-              console.log('CONSULTA click result:', JSON.stringify(consultaClicked));
-              await sleep(2000);
-              await page.screenshot({ path: 'step5-consulta-menu.png', fullPage: true });
-
-              // Step 6: Click on Veículos submenu
-              console.log('Step 6: Looking for Veículos submenu...');
-
-              const veiculosClicked = await page.evaluate(() => {
-                const allElements = document.querySelectorAll('a, li, span');
-                for (const el of allElements) {
-                  const text = el.textContent ? el.textContent.trim() : '';
-                  if (text === 'Veículos' || text === 'VEÍCULOS' || text === 'Veiculos' || text === 'VEICULOS') {
-                    // Make sure it's visible
-                    const rect = el.getBoundingClientRect();
-                    if (rect.width > 0 && rect.height > 0) {
-                      el.click();
-                      return { found: true, text };
-                    }
-                  }
-                }
-                return { found: false };
-              });
-              console.log('Veículos click result:', JSON.stringify(veiculosClicked));
-              await sleep(3000);
-              await page.screenshot({ path: 'step6-veiculos-clicked.png', fullPage: true });
-
-              // Step 7: Check current URL and frames
-              console.log('Step 7: Checking page state...');
-              console.log('Current URL:', page.url());
-
-              const frames = page.frames();
-              console.log('Number of frames:', frames.length);
-              for (let i = 0; i < frames.length; i++) {
-                console.log(`Frame ${i}: ${frames[i].url()}`);
-              }
-
-              // Step 8: Look for Ações button and XLS download
-              console.log('Step 8: Looking for Ações button...');
-
-              // Try in main page first
-              let acoesFound = await page.evaluate(() => {
-                const buttons = document.querySelectorAll('button');
-                for (const btn of buttons) {
-                  if (btn.textContent && btn.textContent.trim() === 'Ações') {
-                    btn.click();
-                    return { found: true, location: 'main page' };
-                  }
-                }
-                return { found: false };
-              });
-
-              // If not found, try in frames
-              if (!acoesFound.found) {
-                for (const frame of frames) {
-                  try {
-                    const result = await frame.evaluate(() => {
-                      const buttons = document.querySelectorAll('button');
-                      for (const btn of buttons) {
-                        if (btn.textContent && btn.textContent.trim() === 'Ações') {
-                          btn.click();
-                          return { found: true };
-                        }
-                      }
-                      return { found: false };
-                    });
-                    if (result.found) {
-                      acoesFound = { found: true, location: 'frame', url: frame.url() };
-                      break;
-                    }
-                  } catch (e) {
-                    // Skip cross-origin frames
-                  }
-                }
-              }
-
-              console.log('Ações result:', JSON.stringify(acoesFound));
-              await sleep(1000);
-              await page.screenshot({ path: 'step8-acoes.png', fullPage: true });
-
-              // Step 9: Click XLS download
-              console.log('Step 9: Looking for XLS download...');
-
-              let xlsFound = await page.evaluate(() => {
-                // Try by ID
-                const xlsLink = document.getElementById('download_txt');
-                if (xlsLink) {
-                  xlsLink.click();
-                  return { found: true, method: 'id' };
-                }
-
-                // Try by text
-                const links = document.querySelectorAll('a, button');
-                for (const link of links) {
-                  const text = link.textContent ? link.textContent.trim().toUpperCase() : '';
-                  if (text === 'XLS' || text === 'EXCEL' || text === 'EXPORTAR XLS') {
-                    link.click();
-                    return { found: true, method: 'text', text };
-                  }
-                }
-
-                // Try __doPostBack
-                if (typeof __doPostBack === 'function') {
-                  try {
-                    __doPostBack('download_txt', '');
-                    return { found: true, method: 'postback' };
-                  } catch(e) {}
-                }
-
-                return { found: false };
-              });
-
-              // If not found in main page, try frames
-              if (!xlsFound.found) {
-                for (const frame of frames) {
-                  try {
-                    const result = await frame.evaluate(() => {
-                      const xlsLink = document.getElementById('download_txt');
-                      if (xlsLink) {
-                        xlsLink.click();
-                        return { found: true, method: 'id' };
-                      }
-
-                      const links = document.querySelectorAll('a, button');
-                      for (const link of links) {
-                        const text = link.textContent ? link.textContent.trim().toUpperCase() : '';
-                        if (text === 'XLS' || text === 'EXCEL') {
-                          link.click();
-                          return { found: true, method: 'text', text };
-                        }
-                      }
-
-                      if (typeof __doPostBack === 'function') {
-                        try {
-                          __doPostBack('download_txt', '');
-                          return { found: true, method: 'postback' };
-                        } catch(e) {}
-                      }
-
-                      return { found: false };
-                    });
-                    if (result.found) {
-                      xlsFound = { ...result, location: 'frame', url: frame.url() };
-                      break;
-                    }
-                  } catch (e) {
-                    // Skip cross-origin frames
-                  }
-                }
-              }
-
-              console.log('XLS result:', JSON.stringify(xlsFound));
-              await page.screenshot({ path: 'step9-xls.png', fullPage: true });
-
-              // Step 10: Wait for download
-              console.log('Step 10: Waiting for download...');
-              let downloadComplete = false;
-              let attempts = 0;
-              const maxAttempts = 30;
-
-              while (!downloadComplete && attempts < maxAttempts) {
-                await sleep(5000);
-                attempts++;
-
-                const files = fs.readdirSync(downloadPath);
-                console.log(`Attempt ${attempts}: Files in download folder:`, files);
-
-                const completedFiles = files.filter(f =>
-                  !f.endsWith('.crdownload') &&
-                  !f.endsWith('.tmp') &&
-                  !f.startsWith('.')
-                );
-
-                if (completedFiles.length > 0) {
-                  console.log('Download completed! Files:', completedFiles);
-                  downloadComplete = true;
-
-                  const xlsFile = completedFiles.find(f =>
-                    f.toLowerCase().endsWith('.xls') ||
-                    f.toLowerCase().endsWith('.xlsx')
-                  ) || completedFiles[0];
-                  const xlsPath = path.join(downloadPath, xlsFile);
-
-                  // Parse XLS and extract vehicle data
-                  console.log('Parsing XLS file:', xlsFile);
-                  const workbook = XLSX.readFile(xlsPath);
-                  const sheetName = workbook.SheetNames[0];
-                  const worksheet = workbook.Sheets[sheetName];
-
-                  // Convert to JSON starting from row 5 (index 4) which has headers
-                  const jsonData = XLSX.utils.sheet_to_json(worksheet, {
-                    range: 4,
-                    defval: null
-                  });
-
-                  // Extract Placa and Km
-                  const vehicles = [];
-                  jsonData.forEach(row => {
-                    const placa = row['Placa'] || row['PLACA'];
-                    const km = row['Km/Hodômetro'] || row['KM/HODÔMETRO'] || row['Km'] || row['KM'];
-
-                    if (placa && placa.toString().trim()) {
-                      vehicles.push({
-                        placa: placa.toString().trim().toUpperCase(),
-                        km: km !== null && !isNaN(km) ? parseInt(km) : 0
-                      });
-                    }
-                  });
-
-                  console.log(`Found ${vehicles.length} vehicles`);
-
-                  const result = {
-                    success: true,
-                    vehicles: vehicles,
-                    updatedAt: new Date().toISOString()
-                  };
-
-                  fs.writeFileSync('vehicles.json', JSON.stringify(result, null, 2));
-                  console.log('Saved to vehicles.json');
-                }
-              }
-
-              await page.screenshot({ path: 'step10-final.png', fullPage: true });
-
-              if (!downloadComplete) {
-                console.log('Download folder contents:', fs.readdirSync(downloadPath));
-                console.error('Download did not complete within timeout');
-                process.exit(1);
-              }
-
-            } catch (error) {
-              console.error('Error:', error.message);
-              await page.screenshot({ path: 'error.png', fullPage: true });
-              throw error;
-            } finally {
-              await browser.close();
             }
-          }
 
-          main().catch(err => {
-            console.error('Fatal:', err);
+            console.log(`Found ${abastecimentos.length} fueling records`);
+
+            // Group by placa and get the latest km for each vehicle
+            const vehicleMap = new Map();
+
+            abastecimentos.forEach(record => {
+              const placa = record.placa ? record.placa.toString().trim().toUpperCase() : null;
+              const kmAtual = record.kmAtual ? parseInt(record.kmAtual.toString().replace(/[^\d]/g, '')) : 0;
+              const data = record.data || '';
+              const hora = record.hora || '';
+
+              if (!placa) return;
+
+              // Parse date (format: dd/MM/yyyy)
+              let recordDate = new Date(0);
+              if (data) {
+                const parts = data.split('/');
+                if (parts.length === 3) {
+                  recordDate = new Date(parts[2], parts[1] - 1, parts[0]);
+                  if (hora) {
+                    const timeParts = hora.split(':');
+                    if (timeParts.length >= 2) {
+                      recordDate.setHours(parseInt(timeParts[0]), parseInt(timeParts[1]));
+                    }
+                  }
+                }
+              }
+
+              const existing = vehicleMap.get(placa);
+              if (!existing || recordDate > existing.date) {
+                vehicleMap.set(placa, {
+                  placa: placa,
+                  km: kmAtual,
+                  date: recordDate,
+                  lastFueling: data
+                });
+              }
+            });
+
+            // Convert to array and sort by placa
+            const vehicles = Array.from(vehicleMap.values())
+              .map(v => ({ placa: v.placa, km: v.km }))
+              .sort((a, b) => a.placa.localeCompare(b.placa));
+
+            console.log(`Extracted ${vehicles.length} unique vehicles`);
+
+            // Sample of vehicles for logging
+            if (vehicles.length > 0) {
+              console.log('Sample vehicles:');
+              vehicles.slice(0, 5).forEach(v => {
+                console.log(`  ${v.placa}: ${v.km.toLocaleString()} km`);
+              });
+              if (vehicles.length > 5) {
+                console.log(`  ... and ${vehicles.length - 5} more`);
+              }
+            }
+
+            const result = {
+              success: true,
+              vehicles: vehicles,
+              updatedAt: new Date().toISOString()
+            };
+
+            fs.writeFileSync('vehicles.json', JSON.stringify(result, null, 2));
+            console.log('Saved to vehicles.json');
+
+          } catch (error) {
+            console.error('Error processing API response:', error.message);
+
+            // Try to show a snippet of the response for debugging
+            try {
+              const raw = fs.readFileSync('api_response.json', 'utf8');
+              console.log('Raw response (first 500 chars):', raw.substring(0, 500));
+            } catch (e) {}
+
             process.exit(1);
-          });
+          }
           EOF
-
-      - name: Upload screenshots
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: vehicles-debug-screenshots
-          path: '*.png'
-          retention-days: 7
 
       - name: Commit vehicles data
         if: success()
