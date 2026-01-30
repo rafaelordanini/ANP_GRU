@@ -1,5 +1,178 @@
 {
   "success": true,
-  "vehicles": [],
-  "updatedAt": null
+  "vehicles": [
+    {
+      "placa": "BZL2F43",
+      "km": 3871
+    },
+    {
+      "placa": "CUG4F75",
+      "km": 31978
+    },
+    {
+      "placa": "CUL7D46",
+      "km": 11480
+    },
+    {
+      "placa": "DMF6F62",
+      "km": 12742
+    },
+    {
+      "placa": "EBW8H62",
+      "km": 11164
+    },
+    {
+      "placa": "EZH7A61",
+      "km": 12834
+    },
+    {
+      "placa": "FCG2J41",
+      "km": 23368
+    },
+    {
+      "placa": "FPE5D01",
+      "km": 4968
+    },
+    {
+      "placa": "FQZ9G12",
+      "km": 4196
+    },
+    {
+      "placa": "FUD8I91",
+      "km": 16409
+    },
+    {
+      "placa": "FZR7F71",
+      "km": 25229
+    },
+    {
+      "placa": "GCU2D61",
+      "km": 11617
+    },
+    {
+      "placa": "GDM5J12",
+      "km": 7835
+    },
+    {
+      "placa": "GHC9F11",
+      "km": 34437
+    },
+    {
+      "placa": "GJT2A42",
+      "km": 12848
+    },
+    {
+      "placa": "GJX4E91",
+      "km": 8727
+    },
+    {
+      "placa": "GKI5D51",
+      "km": 14507
+    },
+    {
+      "placa": "SSU8H74",
+      "km": 15138
+    },
+    {
+      "placa": "STQ5E47",
+      "km": 15011
+    },
+    {
+      "placa": "SUD8J94",
+      "km": 11408
+    },
+    {
+      "placa": "SUG0H21",
+      "km": 9358
+    },
+    {
+      "placa": "SUJ7A96",
+      "km": 10540
+    },
+    {
+      "placa": "SUQ8G37",
+      "km": 17708
+    },
+    {
+      "placa": "SVA5B64",
+      "km": 10931
+    },
+    {
+      "placa": "SVM9A32",
+      "km": 4153
+    },
+    {
+      "placa": "SVO0J65",
+      "km": 24107
+    },
+    {
+      "placa": "SWG4D06",
+      "km": 8375
+    },
+    {
+      "placa": "SWN3E37",
+      "km": 6817
+    },
+    {
+      "placa": "SWQ4H82",
+      "km": 3845
+    },
+    {
+      "placa": "TIO2E54",
+      "km": 7444
+    },
+    {
+      "placa": "TIS8A51",
+      "km": 20540
+    },
+    {
+      "placa": "TIW8I06",
+      "km": 4027
+    },
+    {
+      "placa": "TIX0J47",
+      "km": 15808
+    },
+    {
+      "placa": "TJH7G91",
+      "km": 12547
+    },
+    {
+      "placa": "TJI2G86",
+      "km": 5530
+    },
+    {
+      "placa": "TJJ6D47",
+      "km": 13013
+    },
+    {
+      "placa": "TJO9G58",
+      "km": 12861
+    },
+    {
+      "placa": "TJV6C17",
+      "km": 7889
+    },
+    {
+      "placa": "TKX7I96",
+      "km": 4372
+    },
+    {
+      "placa": "TLN9I16",
+      "km": 6840
+    },
+    {
+      "placa": "TLR1D77",
+      "km": 26708
+    },
+    {
+      "placa": "TLT0B57",
+      "km": 9616
+    },
+    {
+      "placa": "TMI1C87",
+      "km": 16589
+    }
+  ],
+  "updatedAt": "2026-01-30T10:24:30.715Z"
 }
