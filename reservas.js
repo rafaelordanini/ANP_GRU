@@ -736,6 +736,73 @@
         atualizarListas();
     }
 
+function renderizarAtivas() {
+    const container = document.getElementById('lista-ativas');
+    const contador = document.getElementById('contador-ativas');
+    
+    if (contador) contador.textContent = estado.ativas.length;
+    
+    if (!container) return;
+
+    if (estado.ativas.length === 0) {
+        container.innerHTML = `
+            <div class="reservas-empty">
+                <i class="fas fa-check-circle"></i>
+                <p>Nenhuma viatura em reserva no momento</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = estado.ativas.map(item => `
+        <div class="reservas-card">
+            <div class="reservas-card-header">
+                <span class="reservas-badge reservas-badge-warning">
+                    <i class="fas fa-clock"></i> Em andamento
+                </span>
+                <div class="reservas-card-actions">
+                    <button class="reservas-btn-icon" title="Editar" onclick="ReservasViaturas.editarRegistro('${item.id}', 'ativa')">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="reservas-btn-icon reservas-btn-success" title="Finalizar" onclick="ReservasViaturas.finalizarSubstituicao('${item.id}')">
+                        <i class="fas fa-check"></i>
+                    </button>
+                    <button class="reservas-btn-icon reservas-btn-danger" title="Excluir" onclick="ReservasViaturas.excluirSubstituicao('${item.id}', 'ativa')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="reservas-card-body">
+                <div class="reservas-info-row">
+                    <div class="reservas-info-item">
+                        <i class="fas fa-car text-danger"></i>
+                        <div>
+                            <small>Viatura Oficial</small>
+                            <strong>${item.viaturaOficial}</strong>
+                        </div>
+                    </div>
+                    <div class="reservas-info-arrow">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div class="reservas-info-item">
+                        <i class="fas fa-car-side text-success"></i>
+                        <div>
+                            <small>Viatura Reserva</small>
+                            <strong>${item.viaturaReserva}</strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="reservas-info-details">
+                    <span><i class="fas fa-calendar"></i> ${formatarData(item.dataInicio)}</span>
+                    <span><i class="fas fa-tag"></i> ${item.motivo}</span>
+                </div>
+                ${item.observacoes ? `<p class="reservas-obs"><i class="fas fa-sticky-note"></i> ${item.observacoes}</p>` : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
+    
     function finalizar(id) {
         if (confirm('Confirma a finalização desta substituição?')) {
             finalizarSubstituicao(id);
@@ -743,12 +810,209 @@
         }
     }
 
+    function calcularDias(dataInicio, dataFim) {
+    const inicio = new Date(dataInicio);
+    const fim = new Date(dataFim);
+    const diffTime = Math.abs(fim - inicio);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+}
+
+    function renderizarHistorico() {
+    const container = document.getElementById('lista-historico');
+    if (!container) return;
+
+    if (estado.historico.length === 0) {
+        container.innerHTML = `
+            <div class="reservas-empty">
+                <i class="fas fa-history"></i>
+                <p>Nenhum registro no histórico</p>
+            </div>
+        `;
+        return;
+    }
+
+    // Ordena por data mais recente
+    const historicoOrdenado = [...estado.historico].sort((a, b) => 
+        new Date(b.dataFim) - new Date(a.dataFim)
+    );
+
+    container.innerHTML = historicoOrdenado.map(item => `
+        <div class="reservas-card reservas-card-historico">
+            <div class="reservas-card-header">
+                <span class="reservas-badge reservas-badge-success">
+                    <i class="fas fa-check-circle"></i> Finalizado
+                </span>
+                <div class="reservas-card-actions">
+                    <button class="reservas-btn-icon" title="Editar" onclick="ReservasViaturas.editarRegistro('${item.id}', 'historico')">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="reservas-btn-icon reservas-btn-danger" title="Excluir" onclick="ReservasViaturas.excluirSubstituicao('${item.id}', 'historico')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="reservas-card-body">
+                <div class="reservas-info-row">
+                    <div class="reservas-info-item">
+                        <i class="fas fa-car"></i>
+                        <div>
+                            <small>Viatura Oficial</small>
+                            <strong>${item.viaturaOficial}</strong>
+                        </div>
+                    </div>
+                    <div class="reservas-info-arrow">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div class="reservas-info-item">
+                        <i class="fas fa-car-side"></i>
+                        <div>
+                            <small>Viatura Reserva</small>
+                            <strong>${item.viaturaReserva}</strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="reservas-info-details">
+                    <span><i class="fas fa-calendar"></i> ${formatarData(item.dataInicio)} → ${formatarData(item.dataFim)}</span>
+                    <span><i class="fas fa-clock"></i> ${calcularDias(item.dataInicio, item.dataFim)} dias</span>
+                    <span><i class="fas fa-tag"></i> ${item.motivo}</span>
+                </div>
+                ${item.observacoes ? `<p class="reservas-obs"><i class="fas fa-sticky-note"></i> ${item.observacoes}</p>` : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
     function excluir(id) {
         if (confirm('Tem certeza que deseja excluir este registro?')) {
             excluirSubstituicao(id);
             atualizarListas();
         }
     }
+function editarRegistro(id, tipo) {
+    const lista = tipo === 'ativa' ? estado.ativas : estado.historico;
+    const item = lista.find(i => i.id === id);
+    if (!item) return;
+
+    const isHistorico = tipo === 'historico';
+
+    const modalEdicao = document.createElement('div');
+    modalEdicao.className = 'reservas-modal-overlay';
+    modalEdicao.innerHTML = `
+        <div class="reservas-modal" style="max-width: 500px;">
+            <div class="reservas-modal-header">
+                <h2><i class="fas fa-edit"></i> Editar Registro</h2>
+                <button class="reservas-close-btn" onclick="this.closest('.reservas-modal-overlay').remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="reservas-modal-body">
+                <div class="reservas-form-row">
+                    <div class="reservas-form-group">
+                        <label class="reservas-label">
+                            <i class="fas fa-car"></i> Viatura Oficial
+                        </label>
+                        <input type="text" id="edit-viatura-oficial" class="reservas-input" 
+                               value="${item.viaturaOficial}">
+                    </div>
+                    <div class="reservas-form-group">
+                        <label class="reservas-label">
+                            <i class="fas fa-car-side"></i> Viatura Reserva
+                        </label>
+                        <input type="text" id="edit-viatura-reserva" class="reservas-input" 
+                               value="${item.viaturaReserva}">
+                    </div>
+                </div>
+                
+                <div class="reservas-form-row">
+                    <div class="reservas-form-group">
+                        <label class="reservas-label">
+                            <i class="fas fa-calendar"></i> Data Início
+                        </label>
+                        <input type="date" id="edit-data-inicio" class="reservas-input" 
+                               value="${item.dataInicio}">
+                    </div>
+                    ${isHistorico ? `
+                    <div class="reservas-form-group">
+                        <label class="reservas-label">
+                            <i class="fas fa-calendar-check"></i> Data Devolução
+                        </label>
+                        <input type="date" id="edit-data-fim" class="reservas-input" 
+                               value="${item.dataFim || ''}">
+                    </div>
+                    ` : ''}
+                </div>
+
+                <div class="reservas-form-group">
+                    <label class="reservas-label">
+                        <i class="fas fa-exclamation-triangle"></i> Motivo
+                    </label>
+                    <select id="edit-motivo" class="reservas-select">
+                        <option value="">Selecione...</option>
+                        ${CONFIG.motivos.map(m => `
+                            <option value="${m}" ${item.motivo === m ? 'selected' : ''}>${m}</option>
+                        `).join('')}
+                    </select>
+                </div>
+
+                <div class="reservas-form-group">
+                    <label class="reservas-label">
+                        <i class="fas fa-sticky-note"></i> Observações
+                    </label>
+                    <textarea id="edit-observacoes" class="reservas-textarea" rows="3">${item.observacoes || ''}</textarea>
+                </div>
+            </div>
+            <div class="reservas-modal-footer" style="display: flex; gap: 10px; justify-content: flex-end; padding: 15px 20px; border-top: 1px solid #eee;">
+                <button class="reservas-btn reservas-btn-secondary" onclick="this.closest('.reservas-modal-overlay').remove()">
+                    Cancelar
+                </button>
+                <button class="reservas-btn reservas-btn-primary" id="confirmar-edicao">
+                    <i class="fas fa-save"></i> Salvar Alterações
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modalEdicao);
+
+    // Evento de confirmação
+    document.getElementById('confirmar-edicao').onclick = () => {
+        const viaturaOficial = document.getElementById('edit-viatura-oficial').value.trim();
+        const viaturaReserva = document.getElementById('edit-viatura-reserva').value.trim();
+        const dataInicio = document.getElementById('edit-data-inicio').value;
+        const motivo = document.getElementById('edit-motivo').value;
+        const observacoes = document.getElementById('edit-observacoes').value.trim();
+        const dataFim = isHistorico ? document.getElementById('edit-data-fim')?.value : null;
+
+        // Validações
+        if (!viaturaOficial || !viaturaReserva || !dataInicio || !motivo) {
+            alert('Por favor, preencha todos os campos obrigatórios.');
+            return;
+        }
+
+        if (isHistorico && dataFim && dataFim < dataInicio) {
+            alert('A data de devolução não pode ser anterior à data de início.');
+            return;
+        }
+
+        // Atualiza o registro
+        item.viaturaOficial = viaturaOficial;
+        item.viaturaReserva = viaturaReserva;
+        item.dataInicio = dataInicio;
+        item.motivo = motivo;
+        item.observacoes = observacoes;
+        
+        if (isHistorico && dataFim) {
+            item.dataFim = dataFim;
+        }
+
+        salvarDados();
+        renderizarAtivas();
+        renderizarHistorico();
+        modalEdicao.remove();
+    };
+}
+    
 
     // ==========================================
     // INICIALIZAÇÃO
@@ -792,6 +1056,7 @@
         finalizar: finalizar,
         excluir: excluir,
         getAtivas: getSubstituicoesAtivas,
+        editarRegistro: editarRegistro,  
         getHistorico: getHistorico
     };
 
