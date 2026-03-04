@@ -6,7 +6,7 @@ const ReservasViaturas = (function() {
 
     let reservas = [];
     let modalAberto = false;
-    let abaAtiva = 'ativas'; // 'ativas' ou 'historico'
+    let abaAtiva = 'ativas';
 
     // ==================== FUNÇÕES DE API ====================
 
@@ -50,16 +50,17 @@ const ReservasViaturas = (function() {
 
     // ==================== CRUD RESERVAS ====================
 
-    async function adicionarReserva(viatura, motivo, dataInicio) {
+    async function adicionarReserva(viatura, viaturaReserva, motivo, dataInicio) {
         const novaReserva = {
             id: Date.now(),
             viatura: viatura.toUpperCase(),
+            viaturaReserva: viaturaReserva.toUpperCase(),
             motivo: motivo,
             dataInicio: dataInicio,
             dataRetorno: null,
             ativa: true
         };
-        reservas.unshift(novaReserva); // Adiciona no início
+        reservas.unshift(novaReserva);
         await salvarDados();
         renderizarConteudo();
     }
@@ -71,7 +72,6 @@ const ReservasViaturas = (function() {
         const dataRetorno = prompt('Digite a data de retorno (DD/MM/AAAA):');
         if (!dataRetorno) return;
 
-        // Validar formato da data
         const partes = dataRetorno.split('/');
         if (partes.length !== 3) {
             alert('Formato inválido! Use DD/MM/AAAA');
@@ -81,7 +81,6 @@ const ReservasViaturas = (function() {
         const [dia, mes, ano] = partes;
         const dataFormatada = `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
 
-        // Validar se é uma data válida
         const dataObj = new Date(dataFormatada);
         if (isNaN(dataObj.getTime())) {
             alert('Data inválida!');
@@ -111,20 +110,23 @@ const ReservasViaturas = (function() {
         const reserva = reservas.find(r => r.id === id);
         if (!reserva) return;
 
-        // Criar modal de edição
         const modalEdicao = document.createElement('div');
         modalEdicao.className = 'modal-edicao-overlay';
         modalEdicao.innerHTML = `
             <div class="modal-edicao-content">
                 <h3><i class="fas fa-edit"></i> Editar Reserva</h3>
                 <div class="form-group">
-    <label>Viatura (Vereador)</label>
-    <input type="text" id="edit-viatura" value="${escapeHtml(reserva.viatura)}" maxlength="50">
-</div>
-<div class="form-group">
-    <label>Motivo</label>
-    <textarea id="edit-motivo" maxlength="500">${escapeHtml(reserva.motivo)}</textarea>
-</div>
+                    <label>Viatura (Vereador)</label>
+                    <input type="text" id="edit-viatura" value="${escapeHtml(reserva.viatura)}" maxlength="50">
+                </div>
+                <div class="form-group">
+                    <label>Viatura Reserva</label>
+                    <input type="text" id="edit-viatura-reserva" value="${escapeHtml(reserva.viaturaReserva || '')}" maxlength="50">
+                </div>
+                <div class="form-group">
+                    <label>Motivo</label>
+                    <textarea id="edit-motivo" maxlength="500">${escapeHtml(reserva.motivo)}</textarea>
+                </div>
                 <div class="form-group">
                     <label>Data de Início</label>
                     <input type="date" id="edit-data-inicio" value="${reserva.dataInicio}">
@@ -151,26 +153,25 @@ const ReservasViaturas = (function() {
         if (!reserva) return;
 
         const viatura = document.getElementById('edit-viatura').value.trim();
+        const viaturaReserva = document.getElementById('edit-viatura-reserva').value.trim();
         const motivo = document.getElementById('edit-motivo').value.trim();
         const dataInicio = document.getElementById('edit-data-inicio').value;
         const dataRetorno = document.getElementById('edit-data-retorno').value;
 
-        if (!viatura || !motivo || !dataInicio) {
-            alert('Preencha viatura, motivo e data de início!');
+        if (!viatura || !viaturaReserva || !motivo || !dataInicio) {
+            alert('Preencha todos os campos obrigatórios!');
             return;
         }
 
         reserva.viatura = viatura.toUpperCase();
+        reserva.viaturaReserva = viaturaReserva.toUpperCase();
         reserva.motivo = motivo;
         reserva.dataInicio = dataInicio;
         reserva.dataRetorno = dataRetorno || null;
         reserva.ativa = !dataRetorno;
 
         await salvarDados();
-
-        // Fechar modal de edição
         document.querySelector('.modal-edicao-overlay')?.remove();
-
         renderizarConteudo();
     }
 
@@ -213,7 +214,7 @@ const ReservasViaturas = (function() {
                     background: white;
                     border-radius: 16px;
                     width: 95%;
-                    max-width: 800px;
+                    max-width: 900px;
                     max-height: 90vh;
                     overflow: hidden;
                     box-shadow: 0 25px 80px rgba(0,0,0,0.3);
@@ -256,8 +257,6 @@ const ReservasViaturas = (function() {
                     max-height: calc(90vh - 70px);
                     overflow-y: auto;
                 }
-
-                /* Abas */
                 .reservas-tabs {
                     display: flex;
                     background: #f5f5f5;
@@ -293,11 +292,6 @@ const ReservasViaturas = (function() {
                     border-radius: 10px;
                     font-size: 0.85rem;
                 }
-                .reservas-tab.active .badge {
-                    background: #27ae60;
-                }
-
-                /* Conteúdo das abas */
                 .tab-panel {
                     display: none;
                     padding: 20px;
@@ -305,8 +299,6 @@ const ReservasViaturas = (function() {
                 .tab-panel.active {
                     display: block;
                 }
-
-                /* Formulário */
                 .form-nova-reserva {
                     background: linear-gradient(135deg, #f8f9fa, #e9ecef);
                     padding: 20px;
@@ -325,9 +317,11 @@ const ReservasViaturas = (function() {
                 .form-row {
                     display: flex;
                     gap: 16px;
+                    flex-wrap: wrap;
                 }
                 .form-group {
                     flex: 1;
+                    min-width: 200px;
                     margin-bottom: 16px;
                 }
                 .form-group label {
@@ -378,8 +372,11 @@ const ReservasViaturas = (function() {
                     transform: translateY(-2px);
                     box-shadow: 0 4px 12px rgba(39,174,96,0.4);
                 }
-
-                /* Lista de reservas */
+                .btn-adicionar:disabled {
+                    opacity: 0.7;
+                    cursor: not-allowed;
+                    transform: none;
+                }
                 .lista-vazia {
                     text-align: center;
                     padding: 40px 20px;
@@ -395,8 +392,6 @@ const ReservasViaturas = (function() {
                     padding: 40px;
                     color: #666;
                 }
-
-                /* Card de reserva */
                 .reserva-card {
                     background: white;
                     border: 1px solid #e0e0e0;
@@ -418,23 +413,38 @@ const ReservasViaturas = (function() {
                     justify-content: space-between;
                     align-items: flex-start;
                     margin-bottom: 10px;
+                    flex-wrap: wrap;
+                    gap: 10px;
                 }
                 .reserva-viatura {
-                    font-size: 1.3rem;
+                    font-size: 1.1rem;
                     font-weight: 700;
                     color: #27ae60;
                     display: flex;
                     align-items: center;
                     gap: 8px;
+                    flex-wrap: wrap;
                 }
                 .reserva-card.finalizada .reserva-viatura {
                     color: #6c757d;
+                }
+                .reserva-viatura-reserva {
+                    color: #666;
+                    font-weight: normal;
+                    font-size: 0.95rem;
+                }
+                .reserva-viatura-reserva strong {
+                    color: #e67e22;
+                }
+                .reserva-card.finalizada .reserva-viatura-reserva strong {
+                    color: #888;
                 }
                 .reserva-status {
                     padding: 4px 10px;
                     border-radius: 20px;
                     font-size: 0.8rem;
                     font-weight: 600;
+                    white-space: nowrap;
                 }
                 .reserva-status.ativa {
                     background: #d4edda;
@@ -448,6 +458,7 @@ const ReservasViaturas = (function() {
                     color: #555;
                     margin-bottom: 12px;
                     line-height: 1.5;
+                    word-break: break-word;
                 }
                 .reserva-datas {
                     display: flex;
@@ -513,8 +524,6 @@ const ReservasViaturas = (function() {
                 .btn-excluir:hover {
                     background: #c82333;
                 }
-
-                /* Modal de edição */
                 .modal-edicao-overlay {
                     position: fixed;
                     top: 0;
@@ -532,7 +541,9 @@ const ReservasViaturas = (function() {
                     padding: 24px;
                     border-radius: 12px;
                     width: 90%;
-                    max-width: 450px;
+                    max-width: 500px;
+                    max-height: 90vh;
+                    overflow-y: auto;
                     box-shadow: 0 20px 60px rgba(0,0,0,0.3);
                 }
                 .modal-edicao-content h3 {
@@ -541,6 +552,35 @@ const ReservasViaturas = (function() {
                     align-items: center;
                     gap: 10px;
                     color: #333;
+                }
+                .modal-edicao-content .form-group {
+                    margin-bottom: 16px;
+                }
+                .modal-edicao-content .form-group label {
+                    display: block;
+                    margin-bottom: 6px;
+                    font-weight: 600;
+                    color: #495057;
+                    font-size: 0.9rem;
+                }
+                .modal-edicao-content .form-group input,
+                .modal-edicao-content .form-group textarea {
+                    width: 100%;
+                    padding: 10px 12px;
+                    border: 2px solid #dee2e6;
+                    border-radius: 8px;
+                    font-size: 1rem;
+                    box-sizing: border-box;
+                    font-family: inherit;
+                }
+                .modal-edicao-content .form-group input:focus,
+                .modal-edicao-content .form-group textarea:focus {
+                    outline: none;
+                    border-color: #27ae60;
+                }
+                .modal-edicao-content .form-group textarea {
+                    height: 80px;
+                    resize: vertical;
                 }
                 .modal-edicao-buttons {
                     display: flex;
@@ -557,6 +597,9 @@ const ReservasViaturas = (function() {
                     cursor: pointer;
                     font-weight: 600;
                 }
+                .btn-cancelar:hover {
+                    background: #5a6268;
+                }
                 .btn-salvar {
                     padding: 10px 20px;
                     background: #27ae60;
@@ -569,8 +612,9 @@ const ReservasViaturas = (function() {
                     align-items: center;
                     gap: 6px;
                 }
-
-                /* Dias em uso */
+                .btn-salvar:hover {
+                    background: #219a52;
+                }
                 .dias-em-uso {
                     background: #fff3cd;
                     color: #856404;
@@ -578,18 +622,34 @@ const ReservasViaturas = (function() {
                     border-radius: 20px;
                     font-size: 0.8rem;
                     font-weight: 600;
+                    white-space: nowrap;
                 }
-
+                .header-badges {
+                    display: flex;
+                    gap: 8px;
+                    align-items: center;
+                    flex-wrap: wrap;
+                }
                 @media (max-width: 600px) {
                     .form-row {
                         flex-direction: column;
                         gap: 0;
+                    }
+                    .form-group {
+                        min-width: 100%;
+                    }
+                    .reserva-header {
+                        flex-direction: column;
                     }
                     .reserva-acoes {
                         flex-direction: column;
                     }
                     .btn-acao {
                         justify-content: center;
+                    }
+                    .header-badges {
+                        width: 100%;
+                        justify-content: flex-start;
                     }
                 }
             </style>
@@ -617,22 +677,28 @@ const ReservasViaturas = (function() {
                     </div>
                     <div class="modal-reservas-body">
                         <div class="tab-panel active" id="panel-ativas">
-                          <div class="form-nova-reserva">
-    <h3><i class="fas fa-plus-circle"></i> Registrar Viatura em Uso</h3>
-    <div class="form-row">
-        <div class="form-group" style="flex: 2;">
-            <label><i class="fas fa-car"></i> Viatura (Vereador)</label>
-            <input type="text" id="input-viatura" placeholder="Ex: ABC-1234 - Vereador João Silva" maxlength="50">
-        </div>
-                                    <div class="form-group">
+                            <div class="form-nova-reserva">
+                                <h3><i class="fas fa-plus-circle"></i> Registrar Viatura em Uso</h3>
+                                <div class="form-row">
+                                    <div class="form-group" style="flex: 2;">
+                                        <label><i class="fas fa-car"></i> Viatura (Vereador)</label>
+                                        <input type="text" id="input-viatura" placeholder="Ex: ABC-1234 - Vereador João Silva" maxlength="50">
+                                    </div>
+                                    <div class="form-group" style="flex: 2;">
+                                        <label><i class="fas fa-car-side"></i> Viatura Reserva</label>
+                                        <input type="text" id="input-viatura-reserva" placeholder="Ex: XYZ-9876" maxlength="50">
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group" style="flex: 1; max-width: 200px;">
                                         <label><i class="fas fa-calendar"></i> Data de Início</label>
                                         <input type="date" id="input-data-inicio">
                                     </div>
                                 </div>
-                              <div class="form-group">
-    <label><i class="fas fa-clipboard"></i> Motivo (qual viatura está substituindo)</label>
-    <textarea id="input-motivo" placeholder="Ex: Substituindo viatura 5678 em manutenção..." maxlength="500"></textarea>
-</div>
+                                <div class="form-group">
+                                    <label><i class="fas fa-clipboard"></i> Motivo</label>
+                                    <textarea id="input-motivo" placeholder="Ex: Viatura oficial em manutenção preventiva..." maxlength="500"></textarea>
+                                </div>
                                 <button class="btn-adicionar" onclick="ReservasViaturas.adicionar()">
                                     <i class="fas fa-plus"></i> Registrar Uso
                                 </button>
@@ -663,11 +729,9 @@ const ReservasViaturas = (function() {
     function trocarAba(aba) {
         abaAtiva = aba;
 
-        // Atualizar tabs
         document.querySelectorAll('.reservas-tab').forEach(tab => tab.classList.remove('active'));
         document.querySelector(`.reservas-tab:nth-child(${aba === 'ativas' ? 1 : 2})`).classList.add('active');
 
-        // Atualizar painéis
         document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
         document.getElementById(`panel-${aba}`).classList.add('active');
     }
@@ -690,7 +754,6 @@ const ReservasViaturas = (function() {
         const ativas = reservas.filter(r => r.ativa);
         const historico = reservas.filter(r => !r.ativa);
 
-        // Atualizar badges
         document.getElementById('badge-ativas').textContent = ativas.length;
         document.getElementById('badge-historico').textContent = historico.length;
 
@@ -710,9 +773,12 @@ const ReservasViaturas = (function() {
                     <div class="reserva-card">
                         <div class="reserva-header">
                             <div class="reserva-viatura">
-                                <i class="fas fa-car"></i> Viatura ${escapeHtml(r.viatura)}
+                                <i class="fas fa-car"></i> ${escapeHtml(r.viatura)}
+                                <span class="reserva-viatura-reserva">
+                                    → Reserva: <strong>${escapeHtml(r.viaturaReserva || 'N/A')}</strong>
+                                </span>
                             </div>
-                            <div style="display: flex; gap: 8px; align-items: center;">
+                            <div class="header-badges">
                                 <span class="dias-em-uso">${dias} dia${dias !== 1 ? 's' : ''} em uso</span>
                                 <span class="reserva-status ativa">Em uso</span>
                             </div>
@@ -747,7 +813,6 @@ const ReservasViaturas = (function() {
                 </div>
             `;
         } else {
-            // Ordenar por data de retorno (mais recente primeiro)
             const historicoOrdenado = [...historico].sort((a, b) => {
                 return new Date(b.dataRetorno) - new Date(a.dataRetorno);
             });
@@ -761,7 +826,10 @@ const ReservasViaturas = (function() {
                     <div class="reserva-card finalizada">
                         <div class="reserva-header">
                             <div class="reserva-viatura">
-                                <i class="fas fa-car"></i> Viatura ${escapeHtml(r.viatura)}
+                                <i class="fas fa-car"></i> ${escapeHtml(r.viatura)}
+                                <span class="reserva-viatura-reserva">
+                                    → Reserva: <strong>${escapeHtml(r.viaturaReserva || 'N/A')}</strong>
+                                </span>
                             </div>
                             <span class="reserva-status finalizada">Finalizada (${diasTotal} dia${diasTotal !== 1 ? 's' : ''})</span>
                         </div>
@@ -788,6 +856,7 @@ const ReservasViaturas = (function() {
     }
 
     function escapeHtml(text) {
+        if (!text) return '';
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
@@ -807,7 +876,6 @@ const ReservasViaturas = (function() {
         await carregarDados();
         renderizarConteudo();
 
-        // Definir data padrão como hoje
         const hoje = new Date().toISOString().split('T')[0];
         document.getElementById('input-data-inicio').value = hoje;
     }
@@ -822,12 +890,18 @@ const ReservasViaturas = (function() {
 
     async function adicionar() {
         const viatura = document.getElementById('input-viatura').value.trim();
+        const viaturaReserva = document.getElementById('input-viatura-reserva').value.trim();
         const motivo = document.getElementById('input-motivo').value.trim();
         const dataInicio = document.getElementById('input-data-inicio').value;
 
         if (!viatura) {
-            alert('Informe o prefixo da viatura!');
+            alert('Informe a viatura do vereador!');
             document.getElementById('input-viatura').focus();
+            return;
+        }
+        if (!viaturaReserva) {
+            alert('Informe a viatura reserva!');
+            document.getElementById('input-viatura-reserva').focus();
             return;
         }
         if (!motivo) {
@@ -841,7 +915,6 @@ const ReservasViaturas = (function() {
             return;
         }
 
-        // Verificar se viatura já está ativa
         const jaAtiva = reservas.some(r => r.ativa && r.viatura.toUpperCase() === viatura.toUpperCase());
         if (jaAtiva) {
             alert('Esta viatura já está em uso!');
@@ -852,13 +925,13 @@ const ReservasViaturas = (function() {
         btnAdicionar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
         btnAdicionar.disabled = true;
 
-        await adicionarReserva(viatura, motivo, dataInicio);
+        await adicionarReserva(viatura, viaturaReserva, motivo, dataInicio);
 
         btnAdicionar.innerHTML = '<i class="fas fa-plus"></i> Registrar Uso';
         btnAdicionar.disabled = false;
 
-        // Limpar campos
         document.getElementById('input-viatura').value = '';
+        document.getElementById('input-viatura-reserva').value = '';
         document.getElementById('input-motivo').value = '';
         document.getElementById('input-viatura').focus();
     }
