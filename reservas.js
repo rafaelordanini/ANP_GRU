@@ -54,15 +54,71 @@
         return novaSubstituicao;
     }
 
-    function finalizarSubstituicao(id) {
-        const item = substituicoes.find(s => s.id === id);
-        if (item) {
-            item.ativa = false;
-            item.dataFim = new Date().toISOString().split('T')[0];
-            salvarDados();
+   function finalizarSubstituicao(id) {
+    const item = estado.ativas.find(i => i.id === id);
+    if (!item) return;
+
+    // Cria modal para solicitar data de finalização
+    const modalData = document.createElement('div');
+    modalData.className = 'reservas-modal-overlay';
+    modalData.innerHTML = `
+        <div class="reservas-modal" style="max-width: 400px;">
+            <div class="reservas-modal-header">
+                <h2><i class="fas fa-calendar-check"></i> Finalizar Substituição</h2>
+                <button class="reservas-close-btn" onclick="this.closest('.reservas-modal-overlay').remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="reservas-modal-body">
+                <p style="margin-bottom: 15px;">
+                    <strong>${item.viaturaOficial}</strong> → <strong>${item.viaturaReserva}</strong>
+                </p>
+                <div class="reservas-form-group">
+                    <label class="reservas-label">
+                        <i class="fas fa-calendar"></i> Data de Devolução
+                    </label>
+                    <input type="date" id="data-finalizacao" class="reservas-input" 
+                           value="${new Date().toISOString().split('T')[0]}" 
+                           min="${item.dataInicio}">
+                </div>
+            </div>
+            <div class="reservas-modal-footer" style="display: flex; gap: 10px; justify-content: flex-end; padding: 15px 20px; border-top: 1px solid #eee;">
+                <button class="reservas-btn reservas-btn-secondary" onclick="this.closest('.reservas-modal-overlay').remove()">
+                    Cancelar
+                </button>
+                <button class="reservas-btn reservas-btn-success" id="confirmar-finalizacao">
+                    <i class="fas fa-check"></i> Confirmar
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modalData);
+
+    // Evento de confirmação
+    document.getElementById('confirmar-finalizacao').onclick = () => {
+        const dataFim = document.getElementById('data-finalizacao').value;
+        
+        if (!dataFim) {
+            alert('Por favor, informe a data de devolução.');
+            return;
         }
-        return item;
-    }
+
+        if (dataFim < item.dataInicio) {
+            alert('A data de devolução não pode ser anterior à data de início.');
+            return;
+        }
+
+        item.dataFim = dataFim;
+        estado.historico.push(item);
+        estado.ativas = estado.ativas.filter(i => i.id !== id);
+        salvarDados();
+        renderizarAtivas();
+        renderizarHistorico();
+        atualizarBadge();
+        modalData.remove();
+    };
+}
 
     function excluirSubstituicao(id) {
         const index = substituicoes.findIndex(s => s.id === id);
