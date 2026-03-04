@@ -1959,8 +1959,7 @@ GASOLINA R$ ${gasolinaFormatted}
 <!-- No final do body, antes de fechar </body> -->
 <script src="reservas.js"></script>
 <script>
-    // Inicializa o módulo de reservas
-    // Troque '.seu-container' pelo seletor onde quer o botão
+    // 1. Inicializa o módulo de reservas (sem criar botão automático)
     ReservasViaturas.init(null);
 
     // 2. Depois insere o botão no lugar certo
@@ -1970,10 +1969,19 @@ GASOLINA R$ ${gasolinaFormatted}
         btn.id = 'btn-reservas';
         btn.className = 'tab-btn';
         btn.innerHTML = '<i class="fas fa-wrench"></i> Reservas';
-        btn.onclick = () => ReservasViaturas.abrirModal();
+        
+        // Solicita senha antes de abrir
+        btn.onclick = () => {
+            const senha = prompt('Digite a senha para acessar o controle de reservas:');
+            if (senha === 'transportescmg') {
+                ReservasViaturas.abrirModal();
+            } else if (senha !== null) {
+                alert('Senha incorreta!');
+            }
+        };
+        
         btnCombustiveis.insertAdjacentElement('afterend', btn);
     }
-    
 </script>
     
 </body>
