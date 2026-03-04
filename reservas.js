@@ -118,13 +118,13 @@ const ReservasViaturas = (function() {
             <div class="modal-edicao-content">
                 <h3><i class="fas fa-edit"></i> Editar Reserva</h3>
                 <div class="form-group">
-                    <label>Viatura (Prefixo)</label>
-                    <input type="text" id="edit-viatura" value="${escapeHtml(reserva.viatura)}">
-                </div>
-                <div class="form-group">
-                    <label>Motivo</label>
-                    <textarea id="edit-motivo">${escapeHtml(reserva.motivo)}</textarea>
-                </div>
+    <label>Viatura (Vereador)</label>
+    <input type="text" id="edit-viatura" value="${escapeHtml(reserva.viatura)}" maxlength="50">
+</div>
+<div class="form-group">
+    <label>Motivo</label>
+    <textarea id="edit-motivo" maxlength="500">${escapeHtml(reserva.motivo)}</textarea>
+</div>
                 <div class="form-group">
                     <label>Data de Início</label>
                     <input type="date" id="edit-data-inicio" value="${reserva.dataInicio}">
@@ -617,22 +617,22 @@ const ReservasViaturas = (function() {
                     </div>
                     <div class="modal-reservas-body">
                         <div class="tab-panel active" id="panel-ativas">
-                            <div class="form-nova-reserva">
-                                <h3><i class="fas fa-plus-circle"></i> Registrar Viatura em Uso</h3>
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label><i class="fas fa-car"></i> Viatura (Prefixo)</label>
-                                        <input type="text" id="input-viatura" placeholder="Ex: 1234" maxlength="10">
-                                    </div>
+                          <div class="form-nova-reserva">
+    <h3><i class="fas fa-plus-circle"></i> Registrar Viatura em Uso</h3>
+    <div class="form-row">
+        <div class="form-group" style="flex: 2;">
+            <label><i class="fas fa-car"></i> Viatura (Vereador)</label>
+            <input type="text" id="input-viatura" placeholder="Ex: ABC-1234 - Vereador João Silva" maxlength="50">
+        </div>
                                     <div class="form-group">
                                         <label><i class="fas fa-calendar"></i> Data de Início</label>
                                         <input type="date" id="input-data-inicio">
                                     </div>
                                 </div>
-                                <div class="form-group">
-                                    <label><i class="fas fa-clipboard"></i> Motivo (qual viatura está substituindo)</label>
-                                    <textarea id="input-motivo" placeholder="Ex: Substituindo viatura 5678 em manutenção..."></textarea>
-                                </div>
+                              <div class="form-group">
+    <label><i class="fas fa-clipboard"></i> Motivo (qual viatura está substituindo)</label>
+    <textarea id="input-motivo" placeholder="Ex: Substituindo viatura 5678 em manutenção..." maxlength="500"></textarea>
+</div>
                                 <button class="btn-adicionar" onclick="ReservasViaturas.adicionar()">
                                     <i class="fas fa-plus"></i> Registrar Uso
                                 </button>
