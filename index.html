@@ -1961,7 +1961,19 @@ GASOLINA R$ ${gasolinaFormatted}
 <script>
     // Inicializa o módulo de reservas
     // Troque '.seu-container' pelo seletor onde quer o botão
-    ReservasViaturas.init('.button-group');
+    ReservasViaturas.init(null);
+
+    // 2. Depois insere o botão no lugar certo
+    const btnCombustiveis = document.querySelector('.tab-btn[data-tab="combustiveis"]');
+    if (btnCombustiveis) {
+        const btn = document.createElement('button');
+        btn.id = 'btn-reservas';
+        btn.className = 'tab-btn';
+        btn.innerHTML = '<i class="fas fa-wrench"></i> Reservas';
+        btn.onclick = () => ReservasViaturas.abrirModal();
+        btnCombustiveis.insertAdjacentElement('afterend', btn);
+    }
+    
 </script>
     
 </body>
