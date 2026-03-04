@@ -1,1207 +1,589 @@
-// =============================================
-// MÓDULO DE CONTROLE DE SUBSTITUIÇÃO DE VIATURAS
-// =============================================
-(function() {
-    'use strict';
+const ReservasViaturas = (function() {
+    // Configuração JSONBin.io
+    const JSONBIN_BIN_ID = '69a87f2bae596e708f5f5724';
+    const JSONBIN_API_KEY = '$2a$10$9YFcagKpP0flpiOMrmWzleuR5BoVE50.kExP.7PdKgdGciDmrkwo2';
+    const JSONBIN_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`;
 
-    // Configuração do módulo
-    const CONFIG = {
-        storageKey: 'controle_reservas_viaturas',
-        buttonId: 'btn-reservas',
-        modalId: 'modal-reservas',
-        motivos: [
-            'Pane mecânica',
-            'Acidente',
-            'Manutenção preventiva',
-            'Pneu furado',
-            'Problema elétrico',
-            'Revisão',
-            'Outro'
-        ]
-    };
+    let reservas = [];
+    let modalAberto = false;
 
-    // Estado da aplicação
-    let estado = {
-        ativas: [],
-        historico: []
-    };
+    // ==================== FUNÇÕES DE API ====================
 
-    // ==========================================
-    // FUNÇÕES DE ARMAZENAMENTO
-    // ==========================================
-    function carregarDados() {
+    // Carregar dados do JSONBin
+    async function carregarDados() {
         try {
-            const dados = localStorage.getItem(CONFIG.storageKey);
-            if (dados) {
-                estado = JSON.parse(dados);
-                // Garantir estrutura correta
-                if (!estado.ativas) estado.ativas = [];
-                if (!estado.historico) estado.historico = [];
-            }
-        } catch (e) {
-            console.error('Erro ao carregar dados de reservas:', e);
-            estado = { ativas: [], historico: [] };
+            const response = await fetch(JSONBIN_URL, {
+                method: 'GET',
+                headers: {
+                    'X-Access-Key': JSONBIN_API_KEY
+                }
+            });
+            const data = await response.json();
+            reservas = data.record.reservas || data.record || [];
+            if (!Array.isArray(reservas)) reservas = [];
+            console.log('Reservas carregadas:', reservas);
+        } catch (error) {
+            console.error('Erro ao carregar reservas:', error);
+            reservas = [];
         }
     }
 
-    function salvarDados() {
+    // Salvar dados no JSONBin
+    async function salvarDados() {
         try {
-            localStorage.setItem(CONFIG.storageKey, JSON.stringify(estado));
-        } catch (e) {
-            console.error('Erro ao salvar dados de reservas:', e);
+            const response = await fetch(JSONBIN_URL, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Access-Key': JSONBIN_API_KEY
+                },
+                body: JSON.stringify({ reservas: reservas })
+            });
+            const data = await response.json();
+            console.log('Reservas salvas:', data);
+            return true;
+        } catch (error) {
+            console.error('Erro ao salvar reservas:', error);
+            alert('Erro ao salvar dados. Tente novamente.');
+            return false;
         }
     }
 
-    // ==========================================
-    // FUNÇÕES AUXILIARES
-    // ==========================================
-    function formatarData(dataStr) {
-        if (!dataStr) return '-';
-        const [ano, mes, dia] = dataStr.split('-');
-        return `${dia}/${mes}/${ano}`;
+    // ==================== CRUD RESERVAS ====================
+
+    // Adicionar reserva
+    async function adicionarReserva(viatura, motivo, previsao) {
+        const novaReserva = {
+            id: Date.now(),
+            viatura: viatura,
+            motivo: motivo,
+            previsao: previsao,
+            dataRegistro: new Date().toISOString()
+        };
+        reservas.push(novaReserva);
+        await salvarDados();
+        renderizarLista();
     }
 
-    function calcularDias(dataInicio, dataFim) {
-        const inicio = new Date(dataInicio);
-        const fim = new Date(dataFim);
-        const diffTime = Math.abs(fim - inicio);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        return diffDays;
+    // Remover reserva
+    async function removerReserva(id) {
+        if (confirm('Deseja realmente liberar esta viatura da reserva?')) {
+            reservas = reservas.filter(r => r.id !== id);
+            await salvarDados();
+            renderizarLista();
+        }
     }
 
-    function gerarId() {
-        return Date.now().toString(36) + Math.random().toString(36).substr(2);
-    }
-
-    // ==========================================
-    // FUNÇÕES DE UI - ESTILOS
-    // ==========================================
-    function criarEstilos() {
-        if (document.getElementById('reservas-styles')) return;
-
-        const styles = document.createElement('style');
-        styles.id = 'reservas-styles';
-        styles.textContent = `
-            /* Modal Overlay */
-            .reservas-modal-overlay {
-                display: flex;
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0, 0, 0, 0.6);
-                z-index: 10001;
-                justify-content: center;
-                align-items: center;
-                padding: 20px;
-                box-sizing: border-box;
-            }
-
-            /* Botão principal */
-            #${CONFIG.buttonId} {
-                background: linear-gradient(135deg, #e74c3c, #c0392b);
-                color: white;
-                border: none;
-                padding: 12px 20px;
-                border-radius: 10px;
-                font-size: 14px;
-                font-weight: 600;
-                cursor: pointer;
-                display: inline-flex;
-                align-items: center;
-                gap: 8px;
-                transition: all 0.3s ease;
-                box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
-            }
-
-            #${CONFIG.buttonId}:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4);
-            }
-
-            #${CONFIG.buttonId} .badge-count {
-                background: white;
-                color: #e74c3c;
-                padding: 2px 8px;
-                border-radius: 12px;
-                font-size: 12px;
-                font-weight: 700;
-            }
-
-            /* Modal Principal */
-            #${CONFIG.modalId} {
-                display: none;
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0, 0, 0, 0.6);
-                z-index: 10000;
-                justify-content: center;
-                align-items: center;
-                padding: 20px;
-                box-sizing: border-box;
-            }
-
-            #${CONFIG.modalId}.ativo {
-                display: flex;
-            }
-
-            .reservas-modal-content {
-                background: white;
-                border-radius: 16px;
-                width: 100%;
-                max-width: 900px;
-                max-height: 90vh;
-                overflow: hidden;
-                display: flex;
-                flex-direction: column;
-                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            }
-
-            .reservas-modal-header {
-                background: linear-gradient(135deg, #e74c3c, #c0392b);
-                color: white;
-                padding: 20px 24px;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            }
-
-            .reservas-modal-header h2 {
-                margin: 0;
-                font-size: 20px;
-                display: flex;
-                align-items: center;
-                gap: 10px;
-            }
-
-            .reservas-modal-close,
-            .reservas-close-btn {
-                background: rgba(255, 255, 255, 0.2);
-                border: none;
-                color: white;
-                width: 36px;
-                height: 36px;
-                border-radius: 50%;
-                font-size: 20px;
-                cursor: pointer;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                transition: background 0.3s;
-            }
-
-            .reservas-modal-close:hover,
-            .reservas-close-btn:hover {
-                background: rgba(255, 255, 255, 0.3);
-            }
-
-            .reservas-modal-body {
-                padding: 24px;
-                overflow-y: auto;
-                flex: 1;
-            }
-
-            /* Tabs */
-            .reservas-tabs {
-                display: flex;
-                gap: 8px;
-                margin-bottom: 20px;
-                border-bottom: 2px solid #eee;
-                padding-bottom: 12px;
-                flex-wrap: wrap;
-            }
-
-            .reservas-tab {
-                padding: 10px 20px;
-                border: none;
-                background: #f5f5f5;
-                border-radius: 8px;
-                cursor: pointer;
-                font-weight: 600;
-                color: #666;
-                transition: all 0.3s;
-                display: flex;
-                align-items: center;
-                gap: 8px;
-            }
-
-            .reservas-tab:hover {
-                background: #e0e0e0;
-            }
-
-            .reservas-tab.ativo {
-                background: #e74c3c;
-                color: white;
-            }
-
-            /* Formulário */
-            .reservas-form {
-                background: #f8f9fa;
-                padding: 20px;
-                border-radius: 12px;
-                margin-bottom: 20px;
-            }
-
-            .reservas-form-grid {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                gap: 16px;
-            }
-
-            .reservas-form-row {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                gap: 16px;
-                margin-bottom: 16px;
-            }
-
-            .reservas-form-group {
-                display: flex;
-                flex-direction: column;
-                gap: 6px;
-            }
-
-            .reservas-form-group.full-width {
-                grid-column: 1 / -1;
-            }
-
-            .reservas-form-group label,
-            .reservas-label {
-                font-weight: 600;
-                color: #333;
-                font-size: 13px;
-                display: flex;
-                align-items: center;
-                gap: 6px;
-            }
-
-            .reservas-form-group input,
-            .reservas-form-group select,
-            .reservas-form-group textarea,
-            .reservas-input,
-            .reservas-select,
-            .reservas-textarea {
-                padding: 10px 12px;
-                border: 2px solid #e0e0e0;
-                border-radius: 8px;
-                font-size: 14px;
-                transition: border-color 0.3s;
-                width: 100%;
-                box-sizing: border-box;
-            }
-
-            .reservas-form-group input:focus,
-            .reservas-form-group select:focus,
-            .reservas-form-group textarea:focus,
-            .reservas-input:focus,
-            .reservas-select:focus,
-            .reservas-textarea:focus {
-                outline: none;
-                border-color: #e74c3c;
-            }
-
-            .reservas-form-group textarea,
-            .reservas-textarea {
-                resize: vertical;
-                min-height: 60px;
-            }
-
-            /* Botões */
-            .reservas-btn {
-                padding: 10px 20px;
-                border: none;
-                border-radius: 8px;
-                font-weight: 600;
-                cursor: pointer;
-                display: inline-flex;
-                align-items: center;
-                gap: 8px;
-                transition: all 0.3s;
-                font-size: 14px;
-            }
-
-            .reservas-btn-primary {
-                background: linear-gradient(135deg, #3498db, #2980b9);
-                color: white;
-            }
-
-            .reservas-btn-primary:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
-            }
-
-            .reservas-btn-success {
-                background: linear-gradient(135deg, #27ae60, #219a52);
-                color: white;
-            }
-
-            .reservas-btn-success:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
-            }
-
-            .reservas-btn-secondary {
-                background: #95a5a6;
-                color: white;
-            }
-
-            .reservas-btn-secondary:hover {
-                background: #7f8c8d;
-            }
-
-            .reservas-btn-danger {
-                background: #e74c3c;
-                color: white;
-            }
-
-            .reservas-btn-danger:hover {
-                background: #c0392b;
-            }
-
-            .reservas-btn-adicionar {
-                background: linear-gradient(135deg, #27ae60, #219a52);
-                color: white;
-                border: none;
-                padding: 12px 24px;
-                border-radius: 8px;
-                font-weight: 600;
-                cursor: pointer;
-                margin-top: 16px;
-                display: inline-flex;
-                align-items: center;
-                gap: 8px;
-                transition: all 0.3s;
-            }
-
-            .reservas-btn-adicionar:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
-            }
-
-            /* Botões de ícone */
-            .reservas-btn-icon {
-                width: 36px;
-                height: 36px;
-                border: none;
-                border-radius: 8px;
-                cursor: pointer;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                transition: all 0.3s;
-                background: #f0f0f0;
-                color: #666;
-            }
-
-            .reservas-btn-icon:hover {
-                background: #e0e0e0;
-            }
-
-            .reservas-btn-icon.reservas-btn-success {
-                background: #d4edda;
-                color: #27ae60;
-            }
-
-            .reservas-btn-icon.reservas-btn-success:hover {
-                background: #27ae60;
-                color: white;
-            }
-
-            .reservas-btn-icon.reservas-btn-danger {
-                background: #f8d7da;
-                color: #e74c3c;
-            }
-
-            .reservas-btn-icon.reservas-btn-danger:hover {
-                background: #e74c3c;
-                color: white;
-            }
-
-            /* Cards */
-            .reservas-lista {
-                display: flex;
-                flex-direction: column;
-                gap: 12px;
-            }
-
-            .reservas-card {
-                background: white;
-                border: 2px solid #e0e0e0;
-                border-radius: 12px;
-                overflow: hidden;
-                transition: all 0.3s;
-            }
-
-            .reservas-card:hover {
-                border-color: #e74c3c;
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            }
-
-            .reservas-card-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                padding: 12px 16px;
-                background: #f8f9fa;
-                border-bottom: 1px solid #eee;
-            }
-
-            .reservas-card-actions {
-                display: flex;
-                gap: 8px;
-            }
-
-            .reservas-card-body {
-                padding: 16px;
-            }
-
-            .reservas-card-historico {
-                opacity: 0.85;
-            }
-
-            /* Badges */
-            .reservas-badge {
-                padding: 4px 12px;
-                border-radius: 20px;
-                font-size: 12px;
-                font-weight: 600;
-                display: inline-flex;
-                align-items: center;
-                gap: 6px;
-            }
-
-            .reservas-badge-warning {
-                background: #fff3cd;
-                color: #856404;
-            }
-
-            .reservas-badge-success {
-                background: #d4edda;
-                color: #155724;
-            }
-
-            /* Info Row */
-            .reservas-info-row {
-                display: flex;
-                align-items: center;
-                gap: 16px;
-                margin-bottom: 12px;
-                flex-wrap: wrap;
-            }
-
-            .reservas-info-item {
-                display: flex;
-                align-items: center;
-                gap: 10px;
-            }
-
-            .reservas-info-item i {
-                font-size: 24px;
-            }
-
-            .reservas-info-item small {
-                display: block;
-                color: #999;
-                font-size: 11px;
-            }
-
-            .reservas-info-item strong {
-                display: block;
-                font-size: 16px;
-                font-family: monospace;
-            }
-
-            .reservas-info-arrow {
-                color: #999;
-                font-size: 20px;
-            }
-
-            .reservas-info-details {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 16px;
-                font-size: 13px;
-                color: #666;
-            }
-
-            .reservas-info-details span {
-                display: flex;
-                align-items: center;
-                gap: 6px;
-            }
-
-            .reservas-obs {
-                margin-top: 12px;
-                padding: 10px;
-                background: #f8f9fa;
-                border-radius: 8px;
-                font-size: 13px;
-                color: #666;
-                display: flex;
-                align-items: flex-start;
-                gap: 8px;
-            }
-
-            /* Cores de texto */
-            .text-danger {
-                color: #e74c3c;
-            }
-
-            .text-success {
-                color: #27ae60;
-            }
-
-            /* Estado vazio */
-            .reservas-empty {
-                text-align: center;
-                padding: 40px;
-                color: #999;
-            }
-
-            .reservas-empty i {
-                font-size: 48px;
-                margin-bottom: 12px;
-                display: block;
-            }
-
-            /* Modal interno */
-            .reservas-modal {
-                background: white;
-                border-radius: 16px;
-                width: 100%;
-                max-width: 500px;
-                max-height: 90vh;
-                overflow: hidden;
-                display: flex;
-                flex-direction: column;
-                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            }
-
-            .reservas-modal .reservas-modal-header {
-                padding: 16px 20px;
-            }
-
-            .reservas-modal .reservas-modal-header h2 {
-                font-size: 18px;
-            }
-
-            .reservas-modal .reservas-modal-body {
-                padding: 20px;
-            }
-
-            /* Responsivo */
-            @media (max-width: 600px) {
-                .reservas-modal-content {
-                    max-height: 95vh;
-                }
-
-                .reservas-info-row {
-                    flex-direction: column;
-                    align-items: flex-start;
-                }
-
-                .reservas-info-arrow {
-                    transform: rotate(90deg);
-                }
-
-                .reservas-card-header {
-                    flex-direction: column;
-                    gap: 12px;
-                    align-items: flex-start;
-                }
-
-                .reservas-tabs {
-                    flex-direction: column;
-                }
-
-                .reservas-tab {
+    // ==================== INTERFACE ====================
+
+    // Criar modal
+    function criarModal() {
+        if (document.getElementById('modal-reservas')) return;
+
+        const estilos = `
+            <style id="estilos-reservas">
+                .modal-reservas {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
                     width: 100%;
+                    height: 100%;
+                    z-index: 10000;
+                    display: flex;
+                    align-items: center;
                     justify-content: center;
                 }
-            }
+                .modal-reservas-overlay {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0,0,0,0.5);
+                }
+                .modal-reservas-content {
+                    position: relative;
+                    background: white;
+                    border-radius: 12px;
+                    width: 90%;
+                    max-width: 700px;
+                    max-height: 90vh;
+                    overflow: hidden;
+                    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                    animation: modalEntrada 0.3s ease;
+                }
+                @keyframes modalEntrada {
+                    from {
+                        opacity: 0;
+                        transform: scale(0.9) translateY(-20px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: scale(1) translateY(0);
+                    }
+                }
+                .modal-reservas-header {
+                    background: linear-gradient(135deg, #27ae60, #219a52);
+                    color: white;
+                    padding: 20px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }
+                .modal-reservas-header h2 {
+                    margin: 0;
+                    font-size: 1.3rem;
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                }
+                .modal-reservas-close {
+                    background: rgba(255,255,255,0.2);
+                    border: none;
+                    color: white;
+                    width: 36px;
+                    height: 36px;
+                    border-radius: 50%;
+                    cursor: pointer;
+                    font-size: 1.1rem;
+                    transition: background 0.2s;
+                }
+                .modal-reservas-close:hover {
+                    background: rgba(255,255,255,0.3);
+                }
+                .modal-reservas-body {
+                    padding: 20px;
+                    max-height: calc(90vh - 80px);
+                    overflow-y: auto;
+                }
+                .form-nova-reserva {
+                    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+                    padding: 20px;
+                    border-radius: 10px;
+                    margin-bottom: 20px;
+                    border: 1px solid #dee2e6;
+                }
+                .form-nova-reserva h3 {
+                    margin: 0 0 15px 0;
+                    color: #333;
+                    font-size: 1.1rem;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+                .form-row {
+                    display: flex;
+                    gap: 15px;
+                }
+                @media (max-width: 500px) {
+                    .form-row {
+                        flex-direction: column;
+                        gap: 0;
+                    }
+                }
+                .form-group {
+                    flex: 1;
+                    margin-bottom: 15px;
+                }
+                .form-group label {
+                    display: block;
+                    margin-bottom: 6px;
+                    font-weight: 600;
+                    color: #495057;
+                    font-size: 0.9rem;
+                }
+                .form-group input,
+                .form-group textarea {
+                    width: 100%;
+                    padding: 12px 14px;
+                    border: 2px solid #dee2e6;
+                    border-radius: 8px;
+                    font-size: 1rem;
+                    box-sizing: border-box;
+                    transition: border-color 0.2s, box-shadow 0.2s;
+                }
+                .form-group input:focus,
+                .form-group textarea:focus {
+                    outline: none;
+                    border-color: #27ae60;
+                    box-shadow: 0 0 0 4px rgba(39,174,96,0.1);
+                }
+                .form-group textarea {
+                    height: 80px;
+                    resize: vertical;
+                }
+                .btn-adicionar {
+                    background: linear-gradient(135deg, #27ae60, #219a52);
+                    color: white;
+                    border: none;
+                    padding: 14px 24px;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-size: 1rem;
+                    font-weight: 600;
+                    width: 100%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 8px;
+                    transition: transform 0.2s, box-shadow 0.2s;
+                }
+                .btn-adicionar:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 12px rgba(39,174,96,0.4);
+                }
+                .btn-adicionar:active {
+                    transform: translateY(0);
+                }
+                .lista-reservas h3 {
+                    margin: 0 0 15px 0;
+                    color: #333;
+                    font-size: 1.1rem;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+                #contador-reservas {
+                    background: #27ae60;
+                    color: white;
+                    padding: 2px 10px;
+                    border-radius: 12px;
+                    font-size: 0.85rem;
+                    font-weight: 600;
+                }
+                .lista-vazia {
+                    text-align: center;
+                    color: #999;
+                    padding: 40px 20px;
+                    font-style: italic;
+                }
+                .loading-reservas {
+                    text-align: center;
+                    padding: 40px 20px;
+                    color: #666;
+                }
+                .loading-reservas i {
+                    font-size: 1.5rem;
+                    margin-bottom: 10px;
+                    display: block;
+                    color: #27ae60;
+                }
+                .reserva-item {
+                    background: white;
+                    border: 1px solid #e0e0e0;
+                    border-left: 4px solid #27ae60;
+                    border-radius: 8px;
+                    padding: 15px;
+                    margin-bottom: 12px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    gap: 15px;
+                    transition: box-shadow 0.2s, transform 0.2s;
+                }
+                .reserva-item:hover {
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                    transform: translateY(-1px);
+                }
+                .reserva-item.atrasada {
+                    border-left-color: #e74c3c;
+                    background: #fff9f9;
+                }
+                .reserva-info {
+                    flex: 1;
+                    min-width: 0;
+                }
+                .reserva-viatura {
+                    font-size: 1.25rem;
+                    font-weight: 700;
+                    color: #27ae60;
+                    margin-bottom: 4px;
+                }
+                .reserva-item.atrasada .reserva-viatura {
+                    color: #e74c3c;
+                }
+                .reserva-motivo {
+                    color: #555;
+                    margin: 6px 0;
+                    line-height: 1.4;
+                    word-break: break-word;
+                }
+                .reserva-datas {
+                    display: flex;
+                    gap: 15px;
+                    flex-wrap: wrap;
+                    font-size: 0.85rem;
+                    color: #888;
+                    margin-top: 8px;
+                }
+                .reserva-datas span {
+                    display: flex;
+                    align-items: center;
+                    gap: 5px;
+                }
+                .reserva-datas .atrasada {
+                    color: #e74c3c;
+                    font-weight: 600;
+                }
+                .btn-remover {
+                    background: linear-gradient(135deg, #27ae60, #219a52);
+                    color: white;
+                    border: none;
+                    padding: 10px 16px;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-size: 0.9rem;
+                    font-weight: 600;
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    transition: transform 0.2s, box-shadow 0.2s;
+                    white-space: nowrap;
+                }
+                .btn-remover:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 12px rgba(39,174,96,0.4);
+                }
+                @media (max-width: 500px) {
+                    .reserva-item {
+                        flex-direction: column;
+                        align-items: stretch;
+                    }
+                    .btn-remover {
+                        justify-content: center;
+                        margin-top: 10px;
+                    }
+                }
+            </style>
         `;
-        document.head.appendChild(styles);
-    }
 
-    // ==========================================
-    // FUNÇÕES DE UI - MODAL
-    // ==========================================
-    function criarModal() {
-        if (document.getElementById(CONFIG.modalId)) return;
-
-        const modal = document.createElement('div');
-        modal.id = CONFIG.modalId;
-        modal.innerHTML = `
-            <div class="reservas-modal-content">
-                <div class="reservas-modal-header">
-                    <h2><i class="fas fa-wrench"></i> Controle de Viaturas Reserva</h2>
-                    <button class="reservas-modal-close" onclick="ReservasViaturas.fecharModal()">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="reservas-modal-body">
-                    <div class="reservas-tabs">
-                        <button class="reservas-tab ativo" data-tab="ativas">
-                            <i class="fas fa-car"></i> Ativas <span id="reservas-count-ativas">(0)</span>
-                        </button>
-                        <button class="reservas-tab" data-tab="nova">
-                            <i class="fas fa-plus"></i> Nova Substituição
-                        </button>
-                        <button class="reservas-tab" data-tab="historico">
-                            <i class="fas fa-history"></i> Histórico
+        const modalHTML = `
+            <div id="modal-reservas" class="modal-reservas" style="display:none;">
+                <div class="modal-reservas-overlay" onclick="ReservasViaturas.fecharModal()"></div>
+                <div class="modal-reservas-content">
+                    <div class="modal-reservas-header">
+                        <h2><i class="fas fa-wrench"></i> Controle de Viaturas em Reserva</h2>
+                        <button class="modal-reservas-close" onclick="ReservasViaturas.fecharModal()">
+                            <i class="fas fa-times"></i>
                         </button>
                     </div>
-
-                    <!-- Tab Ativas -->
-                    <div class="reservas-tab-content" id="tab-ativas">
-                        <div class="reservas-lista" id="lista-ativas"></div>
-                    </div>
-
-                    <!-- Tab Nova -->
-                    <div class="reservas-tab-content" id="tab-nova" style="display: none;">
-                        <div class="reservas-form">
-                            <div class="reservas-form-grid">
-                                <div class="reservas-form-group">
-                                    <label><i class="fas fa-car"></i> Viatura Oficial (quebrada)</label>
-                                    <input type="text" id="reserva-viatura-oficial" placeholder="Ex: VTR-001" maxlength="20">
+                    <div class="modal-reservas-body">
+                        <div class="form-nova-reserva">
+                            <h3><i class="fas fa-plus-circle"></i> Adicionar Viatura à Reserva</h3>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label><i class="fas fa-car"></i> Viatura (Prefixo)</label>
+                                    <input type="text" id="input-viatura" placeholder="Ex: 1234" maxlength="10">
                                 </div>
-                                <div class="reservas-form-group">
-                                    <label><i class="fas fa-car-side"></i> Viatura Reserva</label>
-                                    <input type="text" id="reserva-viatura-reserva" placeholder="Ex: RES-001" maxlength="20">
-                                </div>
-                                <div class="reservas-form-group">
-                                    <label><i class="fas fa-calendar"></i> Data Início</label>
-                                    <input type="date" id="reserva-data-inicio">
-                                </div>
-                                <div class="reservas-form-group">
-                                    <label><i class="fas fa-exclamation-triangle"></i> Motivo</label>
-                                    <select id="reserva-motivo">
-                                        <option value="">Selecione...</option>
-                                        ${CONFIG.motivos.map(m => `<option value="${m}">${m}</option>`).join('')}
-                                    </select>
-                                </div>
-                                <div class="reservas-form-group full-width">
-                                    <label><i class="fas fa-sticky-note"></i> Observações</label>
-                                    <textarea id="reserva-observacoes" placeholder="Detalhes adicionais..."></textarea>
+                                <div class="form-group">
+                                    <label><i class="fas fa-calendar-alt"></i> Previsão de Retorno</label>
+                                    <input type="date" id="input-previsao">
                                 </div>
                             </div>
-                            <button class="reservas-btn-adicionar" onclick="ReservasViaturas.adicionar()">
-                                <i class="fas fa-check"></i> Registrar Substituição
+                            <div class="form-group">
+                                <label><i class="fas fa-clipboard"></i> Motivo da Reserva</label>
+                                <textarea id="input-motivo" placeholder="Descreva o motivo da reserva..."></textarea>
+                            </div>
+                            <button class="btn-adicionar" onclick="ReservasViaturas.adicionar()">
+                                <i class="fas fa-plus"></i> Adicionar à Reserva
                             </button>
                         </div>
-                    </div>
-
-                    <!-- Tab Histórico -->
-                    <div class="reservas-tab-content" id="tab-historico" style="display: none;">
-                        <div class="reservas-lista" id="lista-historico"></div>
+                        <div class="lista-reservas">
+                            <h3><i class="fas fa-list"></i> Viaturas em Reserva <span id="contador-reservas">0</span></h3>
+                            <div id="lista-reservas-container">
+                                <p class="lista-vazia">Nenhuma viatura em reserva.</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         `;
 
-        document.body.appendChild(modal);
+        document.body.insertAdjacentHTML('beforeend', estilos + modalHTML);
 
-        // Event listeners para tabs
-        modal.querySelectorAll('.reservas-tab').forEach(tab => {
-            tab.addEventListener('click', () => {
-                modal.querySelectorAll('.reservas-tab').forEach(t => t.classList.remove('ativo'));
-                modal.querySelectorAll('.reservas-tab-content').forEach(c => c.style.display = 'none');
-                tab.classList.add('ativo');
-                document.getElementById('tab-' + tab.dataset.tab).style.display = 'block';
-            });
-        });
-
-        // Fechar ao clicar fora
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) fecharModal();
-        });
-
-        // Definir data atual como padrão
-        document.getElementById('reserva-data-inicio').value = new Date().toISOString().split('T')[0];
-    }
-
-    function abrirModal() {
-        document.getElementById(CONFIG.modalId).classList.add('ativo');
-        renderizarAtivas();
-        renderizarHistorico();
-        atualizarContador();
-    }
-
-    function fecharModal() {
-        document.getElementById(CONFIG.modalId).classList.remove('ativo');
-    }
-
-    // ==========================================
-    // FUNÇÕES DE RENDERIZAÇÃO
-    // ==========================================
-    function renderizarAtivas() {
-        const container = document.getElementById('lista-ativas');
-        if (!container) return;
-
-        if (estado.ativas.length === 0) {
-            container.innerHTML = `
-                <div class="reservas-empty">
-                    <i class="fas fa-check-circle"></i>
-                    <p>Nenhuma viatura em reserva no momento</p>
-                </div>
-            `;
-            return;
-        }
-
-        container.innerHTML = estado.ativas.map(item => `
-            <div class="reservas-card">
-                <div class="reservas-card-header">
-                    <span class="reservas-badge reservas-badge-warning">
-                        <i class="fas fa-clock"></i> Em andamento
-                    </span>
-                    <div class="reservas-card-actions">
-                        <button class="reservas-btn-icon" title="Editar" onclick="ReservasViaturas.editarRegistro('${item.id}', 'ativa')">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="reservas-btn-icon reservas-btn-success" title="Finalizar" onclick="ReservasViaturas.finalizar('${item.id}')">
-                            <i class="fas fa-check"></i>
-                        </button>
-                        <button class="reservas-btn-icon reservas-btn-danger" title="Excluir" onclick="ReservasViaturas.excluir('${item.id}', 'ativa')">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </div>
-                <div class="reservas-card-body">
-                    <div class="reservas-info-row">
-                        <div class="reservas-info-item">
-                            <i class="fas fa-car text-danger"></i>
-                            <div>
-                                <small>Viatura Oficial</small>
-                                <strong>${item.viaturaOficial}</strong>
-                            </div>
-                        </div>
-                        <div class="reservas-info-arrow">
-                            <i class="fas fa-arrow-right"></i>
-                        </div>
-                        <div class="reservas-info-item">
-                            <i class="fas fa-car-side text-success"></i>
-                            <div>
-                                <small>Viatura Reserva</small>
-                                <strong>${item.viaturaReserva}</strong>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="reservas-info-details">
-                        <span><i class="fas fa-calendar"></i> ${formatarData(item.dataInicio)}</span>
-                        <span><i class="fas fa-tag"></i> ${item.motivo || 'Não informado'}</span>
-                    </div>
-                    ${item.observacoes ? `<p class="reservas-obs"><i class="fas fa-sticky-note"></i> ${item.observacoes}</p>` : ''}
-                </div>
-            </div>
-        `).join('');
-    }
-
-    function renderizarHistorico() {
-        const container = document.getElementById('lista-historico');
-        if (!container) return;
-
-        if (estado.historico.length === 0) {
-            container.innerHTML = `
-                <div class="reservas-empty">
-                    <i class="fas fa-history"></i>
-                    <p>Nenhum registro no histórico</p>
-                </div>
-            `;
-            return;
-        }
-
-        // Ordena por data mais recente
-        const historicoOrdenado = [...estado.historico].sort((a, b) => 
-            new Date(b.dataFim) - new Date(a.dataFim)
-        );
-
-        container.innerHTML = historicoOrdenado.map(item => `
-            <div class="reservas-card reservas-card-historico">
-                <div class="reservas-card-header">
-                    <span class="reservas-badge reservas-badge-success">
-                        <i class="fas fa-check-circle"></i> Finalizado
-                    </span>
-                    <div class="reservas-card-actions">
-                        <button class="reservas-btn-icon" title="Editar" onclick="ReservasViaturas.editarRegistro('${item.id}', 'historico')">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="reservas-btn-icon reservas-btn-danger" title="Excluir" onclick="ReservasViaturas.excluir('${item.id}', 'historico')">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </div>
-                <div class="reservas-card-body">
-                    <div class="reservas-info-row">
-                        <div class="reservas-info-item">
-                            <i class="fas fa-car"></i>
-                            <div>
-                                <small>Viatura Oficial</small>
-                                <strong>${item.viaturaOficial}</strong>
-                            </div>
-                        </div>
-                        <div class="reservas-info-arrow">
-                            <i class="fas fa-arrow-right"></i>
-                        </div>
-                        <div class="reservas-info-item">
-                            <i class="fas fa-car-side"></i>
-                            <div>
-                                <small>Viatura Reserva</small>
-                                <strong>${item.viaturaReserva}</strong>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="reservas-info-details">
-                        <span><i class="fas fa-calendar"></i> ${formatarData(item.dataInicio)} → ${formatarData(item.dataFim)}</span>
-                        <span><i class="fas fa-clock"></i> ${calcularDias(item.dataInicio, item.dataFim)} dias</span>
-                        <span><i class="fas fa-tag"></i> ${item.motivo || 'Não informado'}</span>
-                    </div>
-                    ${item.observacoes ? `<p class="reservas-obs"><i class="fas fa-sticky-note"></i> ${item.observacoes}</p>` : ''}
-                </div>
-            </div>
-        `).join('');
-    }
-
-    function atualizarContador() {
-        const contador = document.getElementById('reservas-count-ativas');
-        if (contador) {
-            contador.textContent = `(${estado.ativas.length})`;
-        }
-    }
-
-    function atualizarBadge() {
-        const btn = document.getElementById(CONFIG.buttonId);
-        if (!btn) return;
-
-        const count = estado.ativas.length;
-        let badge = btn.querySelector('.badge-count');
-
-        if (count > 0) {
-            if (!badge) {
-                badge = document.createElement('span');
-                badge.className = 'badge-count';
-                btn.appendChild(badge);
+        // Fechar com ESC
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && modalAberto) {
+                fecharModal();
             }
-            badge.textContent = count;
-        } else if (badge) {
-            badge.remove();
-        }
+        });
     }
 
-    // ==========================================
-    // FUNÇÕES CRUD
-    // ==========================================
-    function adicionar() {
-        const viaturaOficial = document.getElementById('reserva-viatura-oficial').value.trim();
-        const viaturaReserva = document.getElementById('reserva-viatura-reserva').value.trim();
-        const dataInicio = document.getElementById('reserva-data-inicio').value;
-        const motivo = document.getElementById('reserva-motivo').value;
-        const observacoes = document.getElementById('reserva-observacoes').value.trim();
+    // Renderizar lista de reservas
+    function renderizarLista() {
+        const container = document.getElementById('lista-reservas-container');
+        const contador = document.getElementById('contador-reservas');
+        
+        if (!container) return;
 
-        // Validação
-        if (!viaturaOficial || !viaturaReserva) {
-            alert('Por favor, preencha as viaturas oficial e reserva.');
+        contador.textContent = reservas.length;
+
+        if (reservas.length === 0) {
+            container.innerHTML = '<p class="lista-vazia"><i class="fas fa-check-circle"></i> Nenhuma viatura em reserva.</p>';
             return;
         }
 
-        if (!dataInicio) {
-            alert('Por favor, informe a data de início.');
+        const hoje = new Date();
+        hoje.setHours(0, 0, 0, 0);
+
+        // Ordenar: atrasadas primeiro, depois por data de previsão
+        const reservasOrdenadas = [...reservas].sort((a, b) => {
+            const dataA = new Date(a.previsao);
+            const dataB = new Date(b.previsao);
+            return dataA - dataB;
+        });
+
+        let html = '';
+        reservasOrdenadas.forEach(r => {
+            const previsaoDate = new Date(r.previsao + 'T00:00:00');
+            const registroDate = new Date(r.dataRegistro);
+            const atrasada = previsaoDate < hoje;
+            
+            const previsaoFormatada = previsaoDate.toLocaleDateString('pt-BR');
+            const registroFormatado = registroDate.toLocaleDateString('pt-BR');
+
+            html += `
+                <div class="reserva-item ${atrasada ? 'atrasada' : ''}">
+                    <div class="reserva-info">
+                        <div class="reserva-viatura">
+                            <i class="fas fa-car"></i> Viatura ${escapeHtml(r.viatura)}
+                        </div>
+                        <div class="reserva-motivo">${escapeHtml(r.motivo)}</div>
+                        <div class="reserva-datas">
+                            <span>
+                                <i class="fas fa-calendar-plus"></i> 
+                                Registro: ${registroFormatado}
+                            </span>
+                            <span class="${atrasada ? 'atrasada' : ''}">
+                                <i class="fas fa-calendar-check"></i> 
+                                Previsão: ${previsaoFormatada}
+                                ${atrasada ? ' (ATRASADA)' : ''}
+                            </span>
+                        </div>
+                    </div>
+                    <button class="btn-remover" onclick="ReservasViaturas.remover(${r.id})">
+                        <i class="fas fa-check"></i> Liberar
+                    </button>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    }
+
+    // Escapar HTML para evitar XSS
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // ==================== CONTROLE DO MODAL ====================
+
+    // Abrir modal
+    async function abrirModal() {
+        criarModal();
+        const modal = document.getElementById('modal-reservas');
+        modal.style.display = 'flex';
+        modalAberto = true;
+        
+        // Mostrar loading
+        const container = document.getElementById('lista-reservas-container');
+        container.innerHTML = '<div class="loading-reservas"><i class="fas fa-spinner fa-spin"></i><br>Carregando reservas...</div>';
+        
+        // Carregar dados e renderizar
+        await carregarDados();
+        renderizarLista();
+        
+        // Definir data mínima como hoje
+        const hoje = new Date().toISOString().split('T')[0];
+        document.getElementById('input-previsao').setAttribute('min', hoje);
+    }
+
+    // Fechar modal
+    function fecharModal() {
+        const modal = document.getElementById('modal-reservas');
+        if (modal) modal.style.display = 'none';
+        modalAberto = false;
+    }
+
+    // ==================== AÇÕES DO USUÁRIO ====================
+
+    // Adicionar (chamado pelo botão)
+    async function adicionar() {
+        const inputViatura = document.getElementById('input-viatura');
+        const inputMotivo = document.getElementById('input-motivo');
+        const inputPrevisao = document.getElementById('input-previsao');
+
+        const viatura = inputViatura.value.trim();
+        const motivo = inputMotivo.value.trim();
+        const previsao = inputPrevisao.value;
+
+        // Validações
+        if (!viatura) {
+            alert('Informe o prefixo da viatura!');
+            inputViatura.focus();
             return;
         }
 
         if (!motivo) {
-            alert('Por favor, selecione o motivo.');
+            alert('Informe o motivo da reserva!');
+            inputMotivo.focus();
             return;
         }
 
-        const novaSubstituicao = {
-            id: gerarId(),
-            viaturaOficial: viaturaOficial.toUpperCase(),
-            viaturaReserva: viaturaReserva.toUpperCase(),
-            dataInicio: dataInicio,
-            dataFim: null,
-            motivo: motivo,
-            observacoes: observacoes
-        };
-
-        estado.ativas.unshift(novaSubstituicao);
-        salvarDados();
-
-        // Limpar formulário
-        document.getElementById('reserva-viatura-oficial').value = '';
-        document.getElementById('reserva-viatura-reserva').value = '';
-        document.getElementById('reserva-data-inicio').value = new Date().toISOString().split('T')[0];
-        document.getElementById('reserva-motivo').value = '';
-        document.getElementById('reserva-observacoes').value = '';
-
-        // Voltar para aba de ativas
-        document.querySelector('.reservas-tab[data-tab="ativas"]').click();
-        
-        renderizarAtivas();
-        atualizarContador();
-        atualizarBadge();
-    }
-
-    function finalizar(id) {
-        const item = estado.ativas.find(i => i.id === id);
-        if (!item) return;
-
-        // Cria modal para solicitar data de finalização
-        const modalData = document.createElement('div');
-        modalData.className = 'reservas-modal-overlay';
-        modalData.innerHTML = `
-            <div class="reservas-modal" style="max-width: 400px;">
-                <div class="reservas-modal-header">
-                    <h2><i class="fas fa-calendar-check"></i> Finalizar Substituição</h2>
-                    <button class="reservas-close-btn" onclick="this.closest('.reservas-modal-overlay').remove()">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="reservas-modal-body">
-                    <p style="margin-bottom: 15px;">
-                        <strong>${item.viaturaOficial}</strong> → <strong>${item.viaturaReserva}</strong>
-                    </p>
-                    <div class="reservas-form-group">
-                        <label class="reservas-label">
-                            <i class="fas fa-calendar"></i> Data de Devolução
-                        </label>
-                        <input type="date" id="data-finalizacao" class="reservas-input" 
-                               value="${new Date().toISOString().split('T')[0]}" 
-                               min="${item.dataInicio}">
-                    </div>
-                </div>
-                <div style="display: flex; gap: 10px; justify-content: flex-end; padding: 15px 20px; border-top: 1px solid #eee;">
-                    <button class="reservas-btn reservas-btn-secondary" onclick="this.closest('.reservas-modal-overlay').remove()">
-                        Cancelar
-                    </button>
-                    <button class="reservas-btn reservas-btn-success" id="confirmar-finalizacao">
-                        <i class="fas fa-check"></i> Confirmar
-                    </button>
-                </div>
-            </div>
-        `;
-
-        document.body.appendChild(modalData);
-
-        // Evento de confirmação
-        document.getElementById('confirmar-finalizacao').onclick = () => {
-            const dataFim = document.getElementById('data-finalizacao').value;
-            
-            if (!dataFim) {
-                alert('Por favor, informe a data de devolução.');
-                return;
-            }
-
-            if (dataFim < item.dataInicio) {
-                alert('A data de devolução não pode ser anterior à data de início.');
-                return;
-            }
-
-            item.dataFim = dataFim;
-            estado.historico.unshift(item);
-            estado.ativas = estado.ativas.filter(i => i.id !== id);
-            
-            salvarDados();
-            renderizarAtivas();
-            renderizarHistorico();
-            atualizarContador();
-            atualizarBadge();
-            modalData.remove();
-        };
-    }
-
-    function excluir(id, tipo) {
-        if (!confirm('Tem certeza que deseja excluir este registro?')) return;
-
-        if (tipo === 'ativa') {
-            estado.ativas = estado.ativas.filter(i => i.id !== id);
-        } else {
-            estado.historico = estado.historico.filter(i => i.id !== id);
+        if (!previsao) {
+            alert('Informe a previsão de retorno!');
+            inputPrevisao.focus();
+            return;
         }
 
-        salvarDados();
-        renderizarAtivas();
-        renderizarHistorico();
-        atualizarContador();
-        atualizarBadge();
-    }
-
-    function editarRegistro(id, tipo) {
-        const lista = tipo === 'ativa' ? estado.ativas : estado.historico;
-        const item = lista.find(i => i.id === id);
-        if (!item) return;
-
-        const isHistorico = tipo === 'historico';
-
-        const modalEdicao = document.createElement('div');
-        modalEdicao.className = 'reservas-modal-overlay';
-        modalEdicao.innerHTML = `
-            <div class="reservas-modal" style="max-width: 500px;">
-                <div class="reservas-modal-header">
-                    <h2><i class="fas fa-edit"></i> Editar Registro</h2>
-                    <button class="reservas-close-btn" onclick="this.closest('.reservas-modal-overlay').remove()">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="reservas-modal-body">
-                    <div class="reservas-form-row">
-                        <div class="reservas-form-group">
-                            <label class="reservas-label">
-                                <i class="fas fa-car"></i> Viatura Oficial
-                            </label>
-                            <input type="text" id="edit-viatura-oficial" class="reservas-input" 
-                                   value="${item.viaturaOficial}">
-                        </div>
-                        <div class="reservas-form-group">
-                            <label class="reservas-label">
-                                <i class="fas fa-car-side"></i> Viatura Reserva
-                            </label>
-                            <input type="text" id="edit-viatura-reserva" class="reservas-input" 
-                                   value="${item.viaturaReserva}">
-                        </div>
-                    </div>
-                    
-                    <div class="reservas-form-row">
-                        <div class="reservas-form-group">
-                            <label class="reservas-label">
-                                <i class="fas fa-calendar"></i> Data Início
-                            </label>
-                            <input type="date" id="edit-data-inicio" class="reservas-input" 
-                                   value="${item.dataInicio}">
-                        </div>
-                        ${isHistorico ? `
-                        <div class="reservas-form-group">
-                            <label class="reservas-label">
-                                <i class="fas fa-calendar-check"></i> Data Devolução
-                            </label>
-                            <input type="date" id="edit-data-fim" class="reservas-input" 
-                                   value="${item.dataFim || ''}">
-                        </div>
-                        ` : ''}
-                    </div>
-
-                    <div class="reservas-form-group">
-                        <label class="reservas-label">
-                            <i class="fas fa-exclamation-triangle"></i> Motivo
-                        </label>
-                        <select id="edit-motivo" class="reservas-select">
-                            <option value="">Selecione...</option>
-                            ${CONFIG.motivos.map(m => `
-                                <option value="${m}" ${item.motivo === m ? 'selected' : ''}>${m}</option>
-                            `).join('')}
-                        </select>
-                    </div>
-
-                    <div class="reservas-form-group">
-                        <label class="reservas-label">
-                            <i class="fas fa-sticky-note"></i> Observações
-                        </label>
-                        <textarea id="edit-observacoes" class="reservas-textarea" rows="3">${item.observacoes || ''}</textarea>
-                    </div>
-                </div>
-                <div style="display: flex; gap: 10px; justify-content: flex-end; padding: 15px 20px; border-top: 1px solid #eee;">
-                    <button class="reservas-btn reservas-btn-secondary" onclick="this.closest('.reservas-modal-overlay').remove()">
-                        Cancelar
-                    </button>
-                    <button class="reservas-btn reservas-btn-primary" id="confirmar-edicao">
-                        <i class="fas fa-save"></i> Salvar Alterações
-                    </button>
-                </div>
-            </div>
-        `;
-
-        document.body.appendChild(modalEdicao);
-
-        // Evento de confirmação
-        document.getElementById('confirmar-edicao').onclick = () => {
-            const viaturaOficial = document.getElementById('edit-viatura-oficial').value.trim();
-            const viaturaReserva = document.getElementById('edit-viatura-reserva').value.trim();
-            const dataInicio = document.getElementById('edit-data-inicio').value;
-            const motivo = document.getElementById('edit-motivo').value;
-            const observacoes = document.getElementById('edit-observacoes').value.trim();
-            const dataFim = isHistorico ? document.getElementById('edit-data-fim')?.value : null;
-
-            // Validações
-            if (!viaturaOficial || !viaturaReserva || !dataInicio || !motivo) {
-                alert('Por favor, preencha todos os campos obrigatórios.');
-                return;
-            }
-
-            if (isHistorico && dataFim && dataFim < dataInicio) {
-                alert('A data de devolução não pode ser anterior à data de início.');
-                return;
-            }
-
-            // Atualiza o registro
-            item.viaturaOficial = viaturaOficial.toUpperCase();
-            item.viaturaReserva = viaturaReserva.toUpperCase();
-            item.dataInicio = dataInicio;
-            item.motivo = motivo;
-            item.observacoes = observacoes;
-            
-            if (isHistorico && dataFim) {
-                item.dataFim = dataFim;
-            }
-
-            salvarDados();
-            renderizarAtivas();
-            renderizarHistorico();
-            modalEdicao.remove();
-        };
-    }
-
-    // ==========================================
-    // INICIALIZAÇÃO
-    // ==========================================
-    //function criarBotao(container) {
-      //  if (container === null) {
-        //    // Botão será criado externamente
-          //  atualizarBadge();
-            //return;
-        //}
-
-        const btn = document.createElement('button');
-        btn.id = CONFIG.buttonId;
-        btn.innerHTML = '<i class="fas fa-wrench"></i> Viaturas Reserva';
-        btn.onclick = abrirModal;
-
-        if (typeof container === 'string') {
-            container = document.querySelector(container);
+        // Verificar se viatura já está na lista
+        const jaExiste = reservas.some(r => r.viatura.toLowerCase() === viatura.toLowerCase());
+        if (jaExiste) {
+            alert('Esta viatura já está na lista de reservas!');
+            inputViatura.focus();
+            return;
         }
 
-        if (container) {
-            container.appendChild(btn);
-        } else {
-            console.warn('Container não encontrado para o botão de reservas.');
-        }
+        // Desabilitar botão durante salvamento
+        const btnAdicionar = document.querySelector('.btn-adicionar');
+        const textoOriginal = btnAdicionar.innerHTML;
+        btnAdicionar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+        btnAdicionar.disabled = true;
 
-        return btn;
+        await adicionarReserva(viatura, motivo, previsao);
+
+        // Reabilitar botão
+        btnAdicionar.innerHTML = textoOriginal;
+        btnAdicionar.disabled = false;
+
+        // Limpar campos
+        inputViatura.value = '';
+        inputMotivo.value = '';
+        inputPrevisao.value = '';
+        inputViatura.focus();
     }
 
-    function init(containerSelector) {
-        carregarDados();
-        criarEstilos();
-        criarModal();
-        criarBotao(containerSelector);
-        atualizarBadge();
+    // Criar botão (vazio - será criado externamente no HTML)
+    function criarBotao(container) {
+        // Não cria botão - será criado externamente
+        return;
     }
 
-    // ==========================================
-    // EXPORTAR API PÚBLICA
-    // ==========================================
-    window.ReservasViaturas = {
-        init: init,
-        abrirModal: abrirModal,
-        fecharModal: fecharModal,
-        adicionar: adicionar,
-        finalizar: finalizar,
-        excluir: excluir,
-        editarRegistro: editarRegistro,
-        getAtivas: () => estado.ativas,
-        getHistorico: () => estado.historico
+    // ==================== INICIALIZAÇÃO ====================
+
+    function init(container) {
+        criarBotao(container);
+    }
+
+    // ==================== API PÚBLICA ====================
+
+    return {
+        init,
+        abrirModal,
+        fecharModal,
+        adicionar,
+        remover: removerReserva
     };
-
 })();
