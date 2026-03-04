@@ -1156,12 +1156,12 @@
     // ==========================================
     // INICIALIZAÇÃO
     // ==========================================
-    function criarBotao(container) {
-        if (container === null) {
-            // Botão será criado externamente
-            atualizarBadge();
-            return;
-        }
+    //function criarBotao(container) {
+      //  if (container === null) {
+        //    // Botão será criado externamente
+          //  atualizarBadge();
+            //return;
+        //}
 
         const btn = document.createElement('button');
         btn.id = CONFIG.buttonId;
