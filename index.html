@@ -1955,5 +1955,14 @@ GASOLINA R$ ${gasolinaFormatted}
         // Initial load
         fetchFuelPrices();
     </script>
+
+<!-- No final do body, antes de fechar </body> -->
+<script src="reservas.js"></script>
+<script>
+    // Inicializa o módulo de reservas
+    // Troque '.seu-container' pelo seletor onde quer o botão
+    ReservasViaturas.init('.button-group');
+</script>
+    
 </body>
 </html>
