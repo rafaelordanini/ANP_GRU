@@ -10,43 +10,43 @@ const ReservasViaturas = (function() {
 
     // ==================== FUNÇÕES DE API ====================
 
-    async function carregarDados() {
-        try {
-            const response = await fetch(JSONBIN_URL, {
-                method: 'GET',
-                headers: {
-                    'X-Access-Key': JSONBIN_API_KEY
-                }
-            });
-            const data = await response.json();
-            reservas = data.record.reservas || data.record || [];
-            if (!Array.isArray(reservas)) reservas = [];
-            console.log('Reservas carregadas:', reservas);
-        } catch (error) {
-            console.error('Erro ao carregar reservas:', error);
-            reservas = [];
-        }
+   async function carregarDados() {
+    try {
+        const response = await fetch(JSONBIN_URL + '/latest', {
+            method: 'GET',
+            headers: {
+                'X-Master-Key': JSONBIN_API_KEY
+            }
+        });
+        const data = await response.json();
+        reservas = data.record.reservas || [];
+        if (!Array.isArray(reservas)) reservas = [];
+        console.log('Reservas carregadas:', reservas);
+    } catch (error) {
+        console.error('Erro ao carregar reservas:', error);
+        reservas = [];
     }
+}
 
-    async function salvarDados() {
-        try {
-            const response = await fetch(JSONBIN_URL, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Access-Key': JSONBIN_API_KEY
-                },
-                body: JSON.stringify({ reservas: reservas })
-            });
-            const data = await response.json();
-            console.log('Reservas salvas:', data);
-            return true;
-        } catch (error) {
-            console.error('Erro ao salvar reservas:', error);
-            alert('Erro ao salvar dados. Tente novamente.');
-            return false;
-        }
+   async function salvarDados() {
+    try {
+        const response = await fetch(JSONBIN_URL, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Master-Key': JSONBIN_API_KEY
+            },
+            body: JSON.stringify({ reservas: reservas })
+        });
+        const data = await response.json();
+        console.log('Reservas salvas:', data);
+        return true;
+    } catch (error) {
+        console.error('Erro ao salvar reservas:', error);
+        alert('Erro ao salvar dados. Tente novamente.');
+        return false;
     }
+}
 
     // ==================== CRUD RESERVAS ====================
 
