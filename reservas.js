@@ -1,7 +1,7 @@
 const ReservasViaturas = (function() {
     // Configuração JSONBin.io
     const JSONBIN_BIN_ID = '69a87f2bae596e708f5f5724';
-    const JSONBIN_API_KEY = '$2a$10$9YFcagKpP0flpiOMrmWzleuR5BoVE50.kExP.7PdKgdGciDmrkwo2';
+    const JSONBIN_API_KEY = '$2a$10$tKDKMvle7OMcl19R73SlMuM/VjJpZOxQfE5FgxwIQwzzkpImPyOoa';
     const JSONBIN_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`;
 
     let reservas = [];
