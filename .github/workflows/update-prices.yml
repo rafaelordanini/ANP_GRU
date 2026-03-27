@@ -246,4 +246,5 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git add prices.json
           git diff --staged --quiet || git commit -m "Update fuel prices [automated]"
+          git pull --rebase origin main
           git push
