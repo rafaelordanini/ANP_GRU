@@ -9,17 +9,10 @@ on:
 jobs:
   download-vehicles:
     runs-on: ubuntu-latest
-    
-    # Define as permissões explicitamente para que o bot consiga gravar no repositório
-    permissions:
-      contents: write
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          # Baixa o histórico completo necessário para realizar o rebase sem erros
-          fetch-depth: 0
 
       - name: Fetch vehicles from Prime API
         env:
@@ -167,23 +160,6 @@ jobs:
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          
-          # Adiciona o JSON atualizado ao stage
-          git add vehicles.json
-
-          # Verifica se o arquivo de fato mudou em relação ao repositório
-          if ! git diff --staged --quiet; then
-            git commit -m "Update vehicles data [automated]"
-            
-            # Atualiza as referências locais com o estado mais recente do GitHub
-            git fetch origin main
-            
-            # Resolve conflitos aplicando o commit local sobre a main remota.
-            # O parâmetro '-Xtheirs' garante que a versão do vehicles.json gerada AGORA pela API prevaleça.
-            git rebase -Xtheirs origin/main
-            
-            # Empurra as modificações com segurança
-            git push origin main
-          else
-            echo "Nenhuma alteração detectada no vehicles.json. Pulando commit e push."
-          fi
+          git add vehicles.json || true
+          git diff --staged --quiet || git commit -m "Update vehicles data [automated]"
+          git push
