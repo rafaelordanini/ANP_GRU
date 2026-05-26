@@ -160,6 +160,19 @@ jobs:
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add vehicles.json || true
-          git diff --staged --quiet || git commit -m "Update vehicles data [automated]"
-          git push
+          
+          # Adiciona o arquivo gerado ao stage do Git
+          git add vehicles.json
+
+          # Verifica se há de fato alguma alteração pendente antes de prosseguir
+          if ! git diff --staged --quiet; then
+            git commit -m "Update vehicles data [automated]"
+            
+            # Sincroniza e mescla alterações da nuvem caso a branch tenha mudado enquanto a action rodava
+            git pull --rebase origin main
+            
+            # Envia as alterações em segurança
+            git push
+          else
+            echo "Nenhuma alteração detectada no vehicles.json. Pulando commit e push."
+          fi
