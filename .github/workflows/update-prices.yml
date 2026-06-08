@@ -30,8 +30,8 @@ jobs:
           const https = require('https');
           const http = require('http');
 
-          const ANP_PAGE_URL = 'https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-revenda-e-de-distribuicao-combustiveis/serie-historica-do-levantamento-de-precos';
           const HEADER_ROW = 11;
+          const BASE_URL = 'https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-revenda-e-de-distribuicao-combustiveis/shlp/semanal/';
 
           function fetchUrl(url) {
             return new Promise((resolve, reject) => {
@@ -50,7 +50,7 @@ jobs:
 
                 const chunks = [];
                 res.on('data', chunk => chunks.push(chunk));
-                res.on('end', () => resolve(Buffer.concat(chunks)));
+                res.on('end', () => resolve({ statusCode: res.statusCode, body: Buffer.concat(chunks) }));
                 res.on('error', reject);
               }).on('error', reject);
             });
@@ -87,88 +87,46 @@ jobs:
           }
 
           async function findLatestExcelUrl() {
-            console.log('Fetching ANP page...');
-            const html = (await fetchUrl(ANP_PAGE_URL)).toString();
-  
-            // Updated regex to match both "municipio" and "municipios" variations
-            const allXlsxPattern = /href="([^"]*municip[^"]*\.xlsx)"/gi;
-            let match;
-            console.log('All municipality xlsx links found:');
-            while ((match = allXlsxPattern.exec(html)) !== null) {
-              console.log('  ' + match[1]);
-            }
-  
-            const matches = [];
-  
-            // Pattern 1: Range format like "semanal-municipio-2024-2025.xlsx" or "semanal-municipios-2022_a_2023.xlsx"
-            const rangePattern = /semanal-municip[a-z]*-(\d{4})[-_](?:a[-_])?(\d{4})\.xlsx/gi;
-            while ((match = rangePattern.exec(html)) !== null) {
-              matches.push({
-                filename: match[0],
-                startYear: parseInt(match[1]),
-                endYear: parseInt(match[2])
-              });
-            }
-  
-            // Pattern 2: Single year format like "semanal-municipios-2026.xlsx"
-            const singlePattern = /semanal-municip[a-z]*-(\d{4})\.xlsx/gi;
-            while ((match = singlePattern.exec(html)) !== null) {
-              const isDuplicate = matches.some(function(m) {
-                return m.filename === match[0];
-              });
-              if (!isDuplicate) {
-                matches.push({
-                  filename: match[0],
-                  startYear: parseInt(match[1]),
-                  endYear: parseInt(match[1])
-                });
+            const year = new Date().getFullYear();
+            const prev = year - 1;
+
+            // Candidatos em ordem de prioridade — ano corrente primeiro, depois range, depois fallback
+            const candidates = [
+              `semanal-municipios-${year}.xlsx`,
+              `semanal-municipio-${year}.xlsx`,
+              `semanal-municipios-${prev}-${year}.xlsx`,
+              `semanal-municipio-${prev}-${year}.xlsx`,
+              `semanal-municipios-${prev}_a_${year}.xlsx`,
+              `semanal-municipio-${prev}_a_${year}.xlsx`,
+              `semanal-municipios-${prev}.xlsx`,
+              `semanal-municipio-${prev}.xlsx`,
+            ];
+
+            console.log(`Trying ${candidates.length} candidate URLs for year ${year}...`);
+
+            for (const filename of candidates) {
+              const url = BASE_URL + filename;
+              console.log(`Checking: ${url}`);
+              try {
+                const res = await fetchUrl(url);
+                if (res.statusCode === 200 && res.body.length > 10000) {
+                  console.log(`Found valid file: ${filename} (${res.body.length} bytes)`);
+                  return { url, body: res.body };
+                } else {
+                  console.log(`  -> status ${res.statusCode}, size ${res.body.length} — skipping`);
+                }
+              } catch (err) {
+                console.log(`  -> error: ${err.message} — skipping`);
               }
             }
-  
-            console.log('Parsed matches:');
-            for (let i = 0; i < matches.length; i++) {
-              console.log('  ' + matches[i].filename + ' (endYear: ' + matches[i].endYear + ')');
-            }
-  
-            if (matches.length === 0) {
-              throw new Error('No municipality Excel files found');
-            }
-  
-            const seen = {};
-            const unique = [];
-            for (let i = 0; i < matches.length; i++) {
-              if (!seen[matches[i].filename]) {
-                seen[matches[i].filename] = true;
-                unique.push(matches[i]);
-              }
-            }
-  
-            unique.sort(function(a, b) {
-              if (b.endYear !== a.endYear) {
-                return b.endYear - a.endYear;
-              }
-              return b.startYear - a.startYear;
-            });
-  
-            console.log('Sorted unique matches:');
-            for (let i = 0; i < unique.length; i++) {
-              console.log('  ' + unique[i].filename);
-            }
-  
-            const latest = unique[0];
-            const baseUrl = 'https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-revenda-e-de-distribuicao-combustiveis/shlp/semanal/';
-            const url = baseUrl + latest.filename;
-            
-            console.log('Selected: ' + latest.filename);
-            return url;
+
+            throw new Error(`No municipality Excel file found. Tried: ${candidates.join(', ')}`);
           }
-          
+
           async function main() {
             try {
-              const excelUrl = await findLatestExcelUrl();
-              console.log('Downloading Excel from:', excelUrl);
-
-              const data = await fetchUrl(excelUrl);
+              const { url: excelUrl, body: data } = await findLatestExcelUrl();
+              console.log('Using Excel from:', excelUrl);
               console.log('Downloaded', data.length, 'bytes');
 
               const workbook = XLSX.read(data, { type: 'buffer', cellDates: true });
