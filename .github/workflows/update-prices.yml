@@ -205,5 +205,5 @@ jobs:
           git add prices.json
           git diff --staged --quiet || git commit -m "Update fuel prices [automated]"
           git fetch origin main
-          git rebase -Xours origin/main
+          git rebase -Xours origin/main || git rebase --abort
           git push
