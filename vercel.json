@@ -8,5 +8,11 @@
         { "key": "Access-Control-Allow-Headers", "value": "Content-Type" }
       ]
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/jsonbin/:match*",
+      "destination": "https://api.jsonbin.io/v3/b/:match*"
+    }
   ]
 }
