@@ -2,7 +2,10 @@ name: Download Prime Report
 
 on:
   schedule:
-    - cron: '0 10 * * 1'
+    # GitHub schedules use UTC. 10:17 UTC is 07:17 in Brasilia (UTC-3).
+    # Avoid minute zero, when scheduled Actions are more likely to be delayed,
+    # and avoid racing the two daily workflows that run at 10:00 UTC.
+    - cron: '17 10 * * 1'
   workflow_dispatch:
 
 jobs:
@@ -342,5 +345,27 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add prime-report.pdf || true
-          git diff --staged --quiet || git commit -m "Update Prime report [automated]"
-          git push
+          if git diff --staged --quiet; then
+            echo "Prime report is already up to date."
+            exit 0
+          fi
+
+          git commit -m "Update Prime report [automated]"
+
+          # Other scheduled workflows also commit generated data. Rebase the
+          # report commit before pushing so a concurrent update does not cause
+          # a non-fast-forward failure.
+          for attempt in 1 2 3; do
+            git fetch origin "${GITHUB_REF_NAME}"
+            git rebase "origin/${GITHUB_REF_NAME}"
+
+            if git push origin "HEAD:${GITHUB_REF_NAME}"; then
+              exit 0
+            fi
+
+            echo "Push attempt ${attempt} failed; retrying after 5 seconds..."
+            sleep 5
+          done
+
+          echo "Unable to push the report after 3 attempts."
+          exit 1
