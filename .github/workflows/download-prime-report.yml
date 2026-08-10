@@ -2,15 +2,25 @@ name: Download Prime Report
 
 on:
   schedule:
-    # GitHub schedules use UTC. 10:17 UTC is 07:17 in Brasilia (UTC-3).
-    # Avoid minute zero, when scheduled Actions are more likely to be delayed,
-    # and avoid racing the two daily workflows that run at 10:00 UTC.
-    - cron: '17 10 * * 1'
+    # GitHub schedules use UTC. 10:00 UTC is 07:00 in Brasilia (UTC-3).
+    - cron: '0 10 * * 1'
   workflow_dispatch:
+
+# The job commits the newly downloaded report back to this repository.
+permissions:
+  contents: write
+
+# Do not let a manual execution and the weekly execution update the PDF at the
+# same time. A queued execution is enough; there is no benefit in cancelling a
+# report download that is already in progress.
+concurrency:
+  group: download-prime-report
+  cancel-in-progress: false
 
 jobs:
   download-report:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout repository
