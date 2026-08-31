@@ -2,17 +2,17 @@ name: Download Prime Report
 
 on:
   schedule:
-    # GitHub schedules use UTC. 10:00 UTC is 07:00 in Brasilia (UTC-3).
-    - cron: '0 10 * * 1'
+    # GitHub schedules are best-effort and can be delayed or dropped. Keep the
+    # 07:00 BRT run, then use five backup triggers at 15-minute intervals.
+    - cron: '0,15,30,45 10 * * 1'
+    - cron: '0,15 11 * * 1'
   workflow_dispatch:
 
-# The job commits the newly downloaded report back to this repository.
 permissions:
   contents: write
 
-# Do not let a manual execution and the weekly execution update the PDF at the
-# same time. A queued execution is enough; there is no benefit in cancelling a
-# report download that is already in progress.
+# Only one download may run at a time. Later backup triggers remain harmless
+# because the freshness check skips them after the first successful update.
 concurrency:
   group: download-prime-report
   cancel-in-progress: false
@@ -20,341 +20,88 @@ concurrency:
 jobs:
   download-report:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 45
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check whether this week's report was already updated
+        id: freshness
+        shell: bash
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" != "schedule" ]]; then
+            echo "download=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          cutoff=$(date -u -d "$(date -u +%F) 10:00:00" +%s)
+          last_update=$(git log -1 --format=%ct -- prime-report.pdf || echo 0)
+
+          if (( last_update >= cutoff )); then
+            echo "The report was already updated by an earlier Monday run."
+            echo "download=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "The weekly report is stale; starting the download."
+            echo "download=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Setup Node.js
+        if: steps.freshness.outputs.download == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
       - name: Install Puppeteer
-        run: npm install puppeteer
+        if: steps.freshness.outputs.download == 'true'
+        run: npm install --no-save puppeteer
 
-      - name: Download Prime Report
+      - name: Download Prime Report (retry up to five times)
+        if: steps.freshness.outputs.download == 'true'
+        shell: bash
         env:
           PRIME_EMPRESA: ${{ secrets.PRIME_EMPRESA }}
           PRIME_USUARIO: ${{ secrets.PRIME_USUARIO }}
           PRIME_SENHA: ${{ secrets.PRIME_SENHA }}
         run: |
-          node << 'EOF'
-          const puppeteer = require('puppeteer');
-          const fs = require('fs');
-          const path = require('path');
+          max_attempts=6 # Initial execution plus at least five retries.
+          for attempt in $(seq 1 "$max_attempts"); do
+            echo "::group::Download attempt ${attempt}/${max_attempts}"
+            rm -rf downloads
 
-          const PRIME_EMPRESA = process.env.PRIME_EMPRESA;
-          const PRIME_USUARIO = process.env.PRIME_USUARIO;
-          const PRIME_SENHA = process.env.PRIME_SENHA;
+            if node .github/scripts/download-prime-report.js; then
+              echo "::endgroup::"
+              exit 0
+            fi
 
-          if (!PRIME_EMPRESA || !PRIME_USUARIO || !PRIME_SENHA) {
-            console.error('Missing credentials.');
-            process.exit(1);
-          }
+            echo "::endgroup::"
+            if (( attempt < max_attempts )); then
+              delay=$((attempt * 30))
+              echo "Attempt ${attempt} failed; retrying in ${delay} seconds..."
+              sleep "$delay"
+            fi
+          done
 
-          async function sleep(ms) {
-            return new Promise(resolve => setTimeout(resolve, ms));
-          }
-
-          async function main() {
-            console.log('Starting browser...');
-            const browser = await puppeteer.launch({
-              headless: 'new',
-              args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-            });
-
-            const page = await browser.newPage();
-            await page.setViewport({ width: 1920, height: 1080 });
-
-            const downloadPath = path.resolve('./downloads');
-            fs.mkdirSync(downloadPath, { recursive: true });
-
-            const client = await page.createCDPSession();
-            await client.send('Page.setDownloadBehavior', {
-              behavior: 'allow',
-              downloadPath: downloadPath
-            });
-
-            try {
-              // Step 1: Login
-              console.log('Step 1: Navigating to login page...');
-              await page.goto('https://primebeneficios.com.br/Intranet/Frota', {
-                waitUntil: 'networkidle2',
-                timeout: 60000
-              });
-              await sleep(2000);
-              await page.screenshot({ path: 'step1-login.png', fullPage: true });
-
-              // Step 2: Fill form
-              console.log('Step 2: Filling login form...');
-              await page.waitForSelector('#cliente');
-              await page.type('#cliente', PRIME_EMPRESA, { delay: 30 });
-              await page.type('#login', PRIME_USUARIO, { delay: 30 });
-              await page.type('#pass', PRIME_SENHA, { delay: 30 });
-              await page.screenshot({ path: 'step2-filled.png', fullPage: true });
-
-              // Step 3: Submit login
-              console.log('Step 3: Submitting login...');
-              await Promise.all([
-                page.click('#submit-form'),
-                page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 60000 }).catch(() => {})
-              ]);
-              await sleep(5000);
-              console.log('URL after login:', page.url());
-              await page.screenshot({ path: 'step3-logged.png', fullPage: true });
-
-              // Step 4: Navigate directly to Consulta_Posto.aspx (Estabelecimentos page)
-              // This is the page that shows the list of establishments with filters
-              console.log('Step 4: Navigating to Consulta_Posto.aspx (Estabelecimentos)...');
-              await page.goto('https://sistema.primebeneficios.com.br/Admin/Consulta_Posto.aspx', {
-                waitUntil: 'networkidle2',
-                timeout: 60000
-              });
-              await sleep(3000);
-              console.log('URL after navigation:', page.url());
-              await page.screenshot({ path: 'step4-estabelecimentos.png', fullPage: true });
-
-              // Debug: List all selects on the page
-              const allSelects = await page.evaluate(() => {
-                const selects = document.querySelectorAll('select');
-                return Array.from(selects).map((s, i) => ({
-                  index: i,
-                  id: s.id,
-                  name: s.name,
-                  optionsCount: s.options.length,
-                  firstOptions: Array.from(s.options).slice(0, 10).map(o => ({ value: o.value, text: o.text }))
-                }));
-              });
-              console.log('Selects found on page:', JSON.stringify(allSelects, null, 2));
-
-              // Debug: List all buttons and links
-              const buttonsAndLinks = await page.evaluate(() => {
-                const elements = document.querySelectorAll('button, input[type="button"], input[type="submit"], a');
-                return Array.from(elements).slice(0, 20).map(el => ({
-                  tag: el.tagName,
-                  type: el.type || null,
-                  id: el.id || null,
-                  text: (el.textContent || el.value || '').trim().substring(0, 30),
-                  href: el.href || null
-                }));
-              });
-              console.log('Buttons and links:', JSON.stringify(buttonsAndLinks, null, 2));
-
-              // Step 5: Expand Filtros section (if collapsed)
-              console.log('Step 5: Expanding Filtros...');
-              const filtrosClicked = await page.evaluate(() => {
-                const elements = document.querySelectorAll('*');
-                for (const el of elements) {
-                  const text = el.textContent.trim();
-                  if (text === 'Filtros' || (text.includes('Filtros') && text.length < 20)) {
-                    el.click();
-                    return { clicked: true, tag: el.tagName, text: text };
-                  }
-                }
-                return { clicked: false };
-              });
-              console.log('Filtros click result:', JSON.stringify(filtrosClicked));
-              await sleep(2000);
-              await page.screenshot({ path: 'step5-filtros.png', fullPage: true });
-
-              // Debug: Log all selects after expanding Filtros
-              const selectsAfterFiltros = await page.evaluate(() => {
-                const selects = document.querySelectorAll('select');
-                return Array.from(selects).map((s, i) => ({
-                  index: i,
-                  id: s.id,
-                  name: s.name,
-                  optionsCount: s.options.length,
-                  firstOptions: Array.from(s.options).slice(0, 5).map(o => o.text)
-                }));
-              });
-              console.log('Selects after Filtros:', JSON.stringify(selectsAfterFiltros, null, 2));
-
-              // Step 6: Select filters
-              console.log('Step 6: Selecting filters...');
-
-              // Select UF = SP
-              const ufResult = await page.evaluate(() => {
-                const selects = document.querySelectorAll('select');
-                for (const sel of selects) {
-                  for (const opt of sel.options) {
-                    if (opt.value === 'SP' || opt.text === 'SP') {
-                      sel.value = opt.value;
-                      sel.dispatchEvent(new Event('change', { bubbles: true }));
-                      return 'SP selected in ' + (sel.id || sel.name);
-                    }
-                  }
-                }
-                return 'SP not found';
-              });
-              console.log('UF:', ufResult);
-              await sleep(3000);
-
-              // Select Cidade = GUARULHOS
-              const cidadeResult = await page.evaluate(() => {
-                const selects = document.querySelectorAll('select');
-                for (const sel of selects) {
-                  for (const opt of sel.options) {
-                    if (opt.text.toUpperCase().includes('GUARULHOS')) {
-                      sel.value = opt.value;
-                      sel.dispatchEvent(new Event('change', { bubbles: true }));
-                      return 'GUARULHOS selected';
-                    }
-                  }
-                }
-                return 'GUARULHOS not found';
-              });
-              console.log('Cidade:', cidadeResult);
-              await sleep(2000);
-
-              // Select Tipo = POSTO
-              const tipoResult = await page.evaluate(() => {
-                const selects = document.querySelectorAll('select');
-                for (const sel of selects) {
-                  for (const opt of sel.options) {
-                    if (opt.text.toUpperCase() === 'POSTO') {
-                      sel.value = opt.value;
-                      sel.dispatchEvent(new Event('change', { bubbles: true }));
-                      return 'POSTO selected';
-                    }
-                  }
-                }
-                return 'POSTO not found';
-              });
-              console.log('Tipo:', tipoResult);
-              await sleep(2000);
-              await page.screenshot({ path: 'step6-filters.png', fullPage: true });
-
-              // Step 7: Click Buscar
-              console.log('Step 7: Clicking Buscar...');
-              const buscarResult = await page.evaluate(() => {
-                const elements = document.querySelectorAll('button, a, input');
-                for (const el of elements) {
-                  const text = el.textContent || el.value || '';
-                  if (text.includes('Buscar')) {
-                    el.click();
-                    return 'Buscar clicked';
-                  }
-                }
-                return 'Buscar not found';
-              });
-              console.log('Buscar:', buscarResult);
-              await sleep(10000);
-              await page.screenshot({ path: 'step7-buscar.png', fullPage: true });
-
-              // Step 8: Open Ações dropdown and click PDF
-              console.log('Step 8: Opening Ações dropdown...');
-
-              // Click the Ações button to open the dropdown
-              const acoesClicked = await page.evaluate(() => {
-                const buttons = document.querySelectorAll('button');
-                for (const btn of buttons) {
-                  if (btn.textContent.trim() === 'Ações') {
-                    btn.click();
-                    return true;
-                  }
-                }
-                return false;
-              });
-              console.log('Ações clicked:', acoesClicked);
-              await sleep(1000);
-
-              await page.screenshot({ path: 'step8-acoes-open.png', fullPage: true });
-
-              // Step 9: Click PDF using JavaScript (avoids visibility issues)
-              console.log('Step 9: Clicking PDF download...');
-
-              const pdfClicked = await page.evaluate(() => {
-                // Try clicking by ID first
-                const pdfLink = document.getElementById('download_txt2');
-                if (pdfLink) {
-                  pdfLink.click();
-                  return { method: 'id', success: true };
-                }
-
-                // Fallback: use postback directly
-                if (typeof __doPostBack === 'function') {
-                  __doPostBack('download_txt2', '');
-                  return { method: 'postback', success: true };
-                }
-
-                return { success: false };
-              });
-              console.log('PDF click result:', JSON.stringify(pdfClicked));
-
-              await page.screenshot({ path: 'step9-pdf-clicked.png', fullPage: true });
-
-              // Wait for download with progress checking
-              console.log('Waiting for download...');
-              let downloadComplete = false;
-              let attempts = 0;
-              const maxAttempts = 30; // 30 * 5 seconds = 150 seconds max
-
-              while (!downloadComplete && attempts < maxAttempts) {
-                await sleep(5000);
-                attempts++;
-
-                const files = fs.readdirSync(downloadPath);
-                console.log(`Attempt ${attempts}: Files in download folder:`, files);
-
-                // Check for completed downloads (not .crdownload or .tmp files)
-                const completedFiles = files.filter(f =>
-                  !f.endsWith('.crdownload') &&
-                  !f.endsWith('.tmp') &&
-                  !f.startsWith('.')
-                );
-
-                if (completedFiles.length > 0) {
-                  console.log('Download completed! Files:', completedFiles);
-                  downloadComplete = true;
-
-                  const pdfFile = completedFiles.find(f => f.toLowerCase().endsWith('.pdf')) || completedFiles[0];
-                  fs.copyFileSync(path.join(downloadPath, pdfFile), './prime-report.pdf');
-                  console.log('Saved as prime-report.pdf');
-                }
-              }
-
-              await page.screenshot({ path: 'step10-final.png', fullPage: true });
-
-              if (!downloadComplete) {
-                // List all files for debugging
-                console.log('Download folder contents:', fs.readdirSync(downloadPath));
-                console.log('Current directory contents:', fs.readdirSync('.'));
-                console.error('Download did not complete within timeout');
-                process.exit(1);
-              }
-
-            } catch (error) {
-              console.error('Error:', error.message);
-              await page.screenshot({ path: 'error.png', fullPage: true });
-              throw error;
-            } finally {
-              await browser.close();
-            }
-          }
-
-          main().catch(err => {
-            console.error('Fatal:', err);
-            process.exit(1);
-          });
-          EOF
+          echo "Download failed after ${max_attempts} attempts."
+          exit 1
 
       - name: Upload screenshots
-        if: always()
+        if: always() && steps.freshness.outputs.download == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: debug-screenshots
+          name: debug-screenshots-${{ github.run_attempt }}
           path: '*.png'
+          if-no-files-found: ignore
           retention-days: 7
 
       - name: Commit report
-        if: success()
+        if: success() && steps.freshness.outputs.download == 'true'
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add prime-report.pdf || true
+          git add prime-report.pdf
           if git diff --staged --quiet; then
             echo "Prime report is already up to date."
             exit 0
