@@ -1,13 +1,13 @@
 {
   "success": true,
   "data": {
-    "gasolinaComum": 6.32,
-    "etanol": 3.87,
-    "diesel": 7.02,
-    "gnv": 5.55
+    "gasolinaComum": 6.33,
+    "etanol": 3.9,
+    "diesel": 7.06,
+    "gnv": 5.54
   },
-  "periodStart": "2026-10-19",
-  "periodEnd": "2026-10-25",
+  "periodStart": "2026-10-26",
+  "periodEnd": "2026-11-01",
   "sourceUrl": "https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-revenda-e-de-distribuicao-combustiveis/shlp/semanal/semanal-municipios-2026.xlsx",
-  "updatedAt": "2026-11-03T17:28:06.817Z"
+  "updatedAt": "2026-11-04T17:34:30.453Z"
 }
