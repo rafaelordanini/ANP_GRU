@@ -3,10 +3,9 @@ name: Download Prime Report
 on:
   schedule:
     # GitHub schedules are best-effort and can be delayed or dropped.
-    # Start at 06:00 BRT (09:00 UTC), with backup triggers at 30-minute intervals until 08:00 BRT (11:00 UTC).
-    - cron: '0,30 9 * * 1'
-    - cron: '0,30 10 * * 1'
-    - cron: '0 11 * * 1'
+    # We stagger the execution minutes (17, 47) to avoid peak hours when GitHub's queues are congested.
+    # Start around 06:17 BRT (09:17 UTC), with backup triggers at 30-minute intervals until 11:47 BRT (14:47 UTC).
+    - cron: '17,47 9-14 * * 1'
   workflow_dispatch:
 
 permissions:
@@ -40,6 +39,7 @@ jobs:
 
           cutoff=$(date -u -d "$(date -u +%F) 09:00:00" +%s)
           last_update=$(git log -1 --format=%ct -- prime-report.pdf || echo 0)
+          last_update=${last_update:-0}
 
           if (( last_update >= cutoff )); then
             echo "The report was already updated by an earlier Monday run."
